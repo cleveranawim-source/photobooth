@@ -1,7 +1,16 @@
 // 행사장 와이파이가 끊겨도 앱이 열리도록 하는 최소한의 오프라인 캐시입니다.
 // 해시가 붙은 번들은 프리캐시하지 않고(배포마다 이름이 바뀝니다) 요청될 때 담습니다.
-const CACHE = "photobooth-v1";
-const SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
+const CACHE = "photobooth-v2";
+// 이름이 고정된 파일만 프리캐시합니다. 폰트 서브셋(구글 unicode-range 조각)은 수백 개라
+// 여기 넣지 않고, 실제로 쓰인 조각만 아래 fetch 핸들러가 캐시에 담습니다.
+const SHELL = [
+  "./",
+  "./index.html",
+  "./manifest.webmanifest",
+  "./icon-192.png",
+  "./icon-512.png",
+  "./fonts/korean.css",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
