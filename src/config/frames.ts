@@ -113,8 +113,8 @@ export const FRAMES: Frame[] = [
   },
   {
     key: "sticker",
-    name: "스티커 콜라주",
-    hint: "찢은 색종이에 스티커 잔뜩",
+    name: "password: JESUS",
+    hint: "2026 여름수련회",
     paper: "#b9c4e6",
     mat: "#f5eedc",
     ink: "#1a1a1a",
@@ -124,6 +124,8 @@ export const FRAMES: Frame[] = [
     titleFont: "sans",
     photoRadius: 16,
     textPlate: true, // 바탕이 알록달록해서 글자를 흰 라벨판에 올려야 읽힙니다
+    // 로고가 주인공이라 이름·문구 대신 이 그림이 들어갑니다.
+    logo: "frames/password-jesus.png",
   },
 ];
 

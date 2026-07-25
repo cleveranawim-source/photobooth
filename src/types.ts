@@ -45,6 +45,12 @@ export type Frame = {
    * (스티커 콜라주처럼). 켜지 않으면 종이 위에 바로 씁니다.
    */
   textPlate?: boolean;
+  /**
+   * 인화물에 얹을 로고 이미지(public 기준 경로). 지정하면 **이름·영문 문구·아래 문구 대신**
+   * 이 그림이 들어갑니다 — 행사 로고가 주인공인 프레임용입니다. 날짜 도장은 그대로 찍힙니다.
+   * 사진이 없는 가장 넓은 여백을 찾아 그 안에 맞춰 넣으므로 레이아웃마다 자리가 달라집니다.
+   */
+  logo?: string;
 };
 
 export type LayoutCell = { x: number; y: number; w: number; h: number };

@@ -68,6 +68,29 @@ function drawText(
   context.restore();
 }
 
+/**
+ * 사진이 없는 가장 넓은 띠(위·아래·왼쪽·오른쪽)를 찾습니다. 로고 자리를 레이아웃마다
+ * 따로 정하지 않아도 되도록, 남는 공간이 가장 큰 쪽에 알아서 넣습니다.
+ * (세로 스트립은 발치, 가로 띠는 왼쪽 라벨 자리가 잡힙니다.)
+ */
+function widestBand(layout: Layout) {
+  const cells = layout.cells;
+  const x0 = Math.min(...cells.map((c) => c.x));
+  const y0 = Math.min(...cells.map((c) => c.y));
+  const x1 = Math.max(...cells.map((c) => c.x + c.w));
+  const y1 = Math.max(...cells.map((c) => c.y + c.h));
+  const bands = [
+    { x: 0, y: 0, w: layout.tile.w, h: y0 },
+    { x: 0, y: y1, w: layout.tile.w, h: layout.tile.h - y1 },
+    { x: 0, y: 0, w: x0, h: layout.tile.h },
+    { x: x1, y: 0, w: layout.tile.w - x1, h: layout.tile.h },
+  ];
+  return bands.reduce((best, b) => (b.w * b.h > best.w * best.h ? b : best));
+}
+
+const inside = (rect: { x: number; y: number; w: number; h: number }, x: number, y: number) =>
+  x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h;
+
 export type ComposeInput = {
   images: string[];
   frame: Frame;
@@ -94,8 +117,12 @@ export async function composePrint({
   quality = 0.92,
 }: ComposeInput): Promise<string> {
   const stamp = dateStamp();
-  const [loaded] = await Promise.all([
+  const [loaded, logo] = await Promise.all([
     Promise.all(images.slice(0, layout.cells.length).map(loadImage)),
+    // 로고를 못 받아도 인화는 되게 — 그 경우 원래대로 글자를 씁니다.
+    frame.logo
+      ? loadImage(`${import.meta.env.BASE_URL}${frame.logo}`).catch(() => null)
+      : Promise.resolve(null),
     ensurePrintFonts(`${title}${tagline}${tagline.toUpperCase()}${caption}${stamp}#0123456789`),
   ]);
   const canvas = document.createElement("canvas");
@@ -111,6 +138,8 @@ export async function composePrint({
   const titleFont = FONT_STACKS[frame.titleFont];
   const bodyFont = FONT_STACKS.sans;
   const monoFont = FONT_STACKS.mono;
+  // 로고 자리는 장식도 비켜 가야 그림이 또렷하게 읽힙니다.
+  const logoBand = logo ? widestBand(layout) : null;
 
   layout.tiles.forEach((tile, tileIndex) => {
     context.save();
@@ -119,7 +148,7 @@ export async function composePrint({
     context.rect(0, 0, layout.tile.w, layout.tile.h);
     context.clip();
 
-    paintTile(context, frame, layout.tile, layout.title, layout.cells);
+    paintTile(context, frame, layout.tile, layout.title, layout.cells, logoBand);
 
     layout.cells.forEach((cell, index) => {
       const image = loaded[index];
@@ -136,24 +165,44 @@ export async function composePrint({
       paintCell(context, frame, cell, index, layout.tile);
     });
 
-    drawText(context, title, layout.title, { font: titleFont, weight: 800, color: frame.ink, plate: frame.textPlate });
-    drawText(context, tagline.toUpperCase(), layout.tagline, {
-      font: bodyFont,
-      weight: 700,
-      color: frame.accent,
-      tracking: Math.max(1, Math.round(layout.tagline.size * 0.14)),
-      plate: frame.textPlate,
-    });
-    drawText(context, caption, layout.caption, { font: titleFont, weight: 800, color: frame.ink, plate: frame.textPlate });
+    if (logo && logoBand) {
+      // 로고가 주인공인 프레임 — 이름·영문 문구·아래 문구는 생략하고 그림만 크게 넣습니다.
+      const fit = Math.min(
+        (logoBand.w * 0.9) / logo.naturalWidth,
+        (logoBand.h * 0.86) / logo.naturalHeight,
+      );
+      const lw = logo.naturalWidth * fit;
+      const lh = logo.naturalHeight * fit;
+      context.drawImage(
+        logo,
+        logoBand.x + (logoBand.w - lw) / 2,
+        logoBand.y + (logoBand.h - lh) / 2,
+        lw,
+        lh,
+      );
+    } else {
+      drawText(context, title, layout.title, { font: titleFont, weight: 800, color: frame.ink, plate: frame.textPlate });
+      drawText(context, tagline.toUpperCase(), layout.tagline, {
+        font: bodyFont,
+        weight: 700,
+        color: frame.accent,
+        tracking: Math.max(1, Math.round(layout.tagline.size * 0.14)),
+        plate: frame.textPlate,
+      });
+      drawText(context, caption, layout.caption, { font: titleFont, weight: 800, color: frame.ink, plate: frame.textPlate });
+    }
 
-    context.globalAlpha = 0.7;
-    drawText(
-      context,
-      layout.tiles.length > 1 ? `${stamp}  ·  #${String(tileIndex + 1).padStart(2, "0")}` : stamp,
-      layout.stamp,
-      { font: monoFont, weight: 600, color: frame.sub, plate: frame.textPlate },
-    );
-    context.globalAlpha = 1;
+    // 날짜 도장은 로고 자리와 겹치면 생략합니다 — 로고를 작게 줄이는 것보다 낫습니다.
+    if (!logoBand || !inside(logoBand, layout.stamp.x, layout.stamp.y)) {
+      context.globalAlpha = 0.7;
+      drawText(
+        context,
+        layout.tiles.length > 1 ? `${stamp}  ·  #${String(tileIndex + 1).padStart(2, "0")}` : stamp,
+        layout.stamp,
+        { font: monoFont, weight: 600, color: frame.sub, plate: frame.textPlate },
+      );
+      context.globalAlpha = 1;
+    }
 
     context.restore();
   });

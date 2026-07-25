@@ -12,6 +12,9 @@ import { roundedRect } from "./canvas";
 
 type Tile = { w: number; h: number };
 
+/** 장식이 비켜 가야 할 자리(로고 등). 없으면 null. */
+export type Reserved = { x: number; y: number; w: number; h: number } | null;
+
 type Painter = {
   /** cells 는 사진이 덮을 자리 — 장식을 그쪽에 몰아 두면 안 보이므로 여백을 노리는 데 씁니다. */
   tile: (
@@ -20,6 +23,7 @@ type Painter = {
     tile: Tile,
     title: TextSlot,
     cells: LayoutCell[],
+    reserved: Reserved,
   ) => void;
   cell?: (
     context: CanvasRenderingContext2D,
@@ -727,7 +731,7 @@ function doodle(context: CanvasRenderingContext2D, x: number, y: number, s: numb
 type Region = [number, number, number, number, number];
 
 const stickerDecor: Painter = {
-  tile: (context, _frame, tile, _title, cells) => {
+  tile: (context, _frame, tile, _title, cells, reserved) => {
     const unit = Math.min(tile.w, tile.h);
 
     // 사진이 덮을 영역. 장식을 여기 두면 안 보이므로, 스티커는 이 바깥과 경계에만 놓습니다.
@@ -747,8 +751,25 @@ const stickerDecor: Painter = {
       y: Math.min(Math.max(p.y, inset), tile.h - inset),
     });
 
-    /** 여백(머리·발치·좌우) 안의 한 점. 사진에 가리지 않는 자리만 고릅니다. */
-    const spotInMargin = (seed: number) => clamp(pickRegion(seed));
+    /**
+     * 여백(머리·발치·좌우) 안의 한 점. 사진에 가리지 않는 자리만 고르고,
+     * 로고 자리(reserved)에 떨어지면 다른 씨앗으로 다시 뽑습니다.
+     */
+    const spotInMargin = (seed: number) => {
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        const p = clamp(pickRegion(seed + attempt * 997));
+        if (
+          !reserved ||
+          p.x < reserved.x ||
+          p.x > reserved.x + reserved.w ||
+          p.y < reserved.y ||
+          p.y > reserved.y + reserved.h
+        ) {
+          return p;
+        }
+      }
+      return clamp(pickRegion(seed));
+    };
 
     const pickRegion = (seed: number) => {
       const top = box.y0;
@@ -801,23 +822,23 @@ const stickerDecor: Painter = {
       doodle(context, p.x, p.y, unit * 0.10, i * 9);
     }
     const s = unit * 0.11;
-    for (let i = 0; i < 6; i += 1) {
+    for (let i = 0; i < 3; i += 1) {
       const p = spotInMargin(i * 53 + 300);
       pixelHeart(context, p.x, p.y, s * 0.2, i % 2 ? "#e23b3b" : "#f2549a");
     }
-    for (let i = 0; i < 4; i += 1) {
+    for (let i = 0; i < 2; i += 1) {
       const p = spotInMargin(i * 59 + 400);
       smiley(context, p.x, p.y, s * (0.62 + rand(i + 430) * 0.3));
     }
-    for (let i = 0; i < 3; i += 1) {
+    for (let i = 0; i < 2; i += 1) {
       const p = spotInMargin(i * 61 + 500);
       butterfly(context, p.x, p.y, s * 0.72, i % 2 ? "#9b7fd4" : "#5b9bd5");
     }
-    for (let i = 0; i < 4; i += 1) {
+    for (let i = 0; i < 2; i += 1) {
       const p = spotInMargin(i * 67 + 600);
       starShape(context, p.x, p.y, s * 0.46, "#ffd84d");
     }
-    for (let i = 0; i < 3; i += 1) {
+    for (let i = 0; i < 2; i += 1) {
       const p = spotInMargin(i * 71 + 700);
       musicNote(context, p.x, p.y, s * 0.46);
     }
@@ -885,10 +906,11 @@ export function paintTile(
   tile: Tile,
   title: TextSlot,
   cells: LayoutCell[],
+  reserved: Reserved = null,
 ) {
   context.fillStyle = frame.paper;
   context.fillRect(0, 0, tile.w, tile.h);
-  PAINTERS[frame.decor].tile(context, frame, tile, title, cells);
+  PAINTERS[frame.decor].tile(context, frame, tile, title, cells, reserved);
 }
 
 /** 사진 한 칸을 그린 직후의 장식(테두리·테이프·번호 등). */
