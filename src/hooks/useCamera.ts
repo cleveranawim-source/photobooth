@@ -50,18 +50,36 @@ export function useCamera() {
     }
   }, []);
 
-  /** 촬영 화면의 <video> 들에 스트림을 물립니다(미리보기 + 글로우 레이어). */
+  /**
+   * 촬영 화면의 <video> 들에 스트림을 물립니다(미리보기 + 글로우 레이어).
+   * 정리 함수를 돌려주므로 effect 에서 그대로 return 하면 됩니다.
+   *
+   * 첫 프레임이 들어와야 촬영을 시작할 수 있으므로 canplay/loadedmetadata 를 듣습니다.
+   * 이걸 빼먹고 붙이는 순간의 readyState 만 보면, 방금 srcObject 를 넣은 직후라 항상
+   * 준비 전이어서 ready 가 영영 false 로 남고 촬영 버튼이 비활성으로 굳습니다.
+   */
   const attach = useCallback((elements: (HTMLVideoElement | null)[]) => {
     const stream = streamRef.current;
-    if (!stream) return;
-    for (const element of elements) {
-      if (!element) continue;
+    if (!stream) return undefined;
+    const videos = elements.filter((element): element is HTMLVideoElement => !!element);
+    for (const element of videos) {
       element.srcObject = stream;
       element.play().catch(() => undefined);
     }
-    // 재사용한 스트림은 canplay 가 다시 안 뜰 수 있어, 이미 준비된 경우 바로 활성화합니다.
-    const first = elements.find(Boolean);
-    if (first && first.readyState >= 2) setReady(true);
+    const primary = videos[0];
+    if (!primary) return undefined;
+    // 재사용한 스트림은 canplay 가 다시 안 뜰 수 있어, 이미 준비된 경우를 먼저 봅니다.
+    if (primary.readyState >= 2) {
+      setReady(true);
+      return undefined;
+    }
+    const markReady = () => setReady(true);
+    primary.addEventListener("loadedmetadata", markReady);
+    primary.addEventListener("canplay", markReady);
+    return () => {
+      primary.removeEventListener("loadedmetadata", markReady);
+      primary.removeEventListener("canplay", markReady);
+    };
   }, []);
 
   return { start, stop, attach, ready, setReady, resolution, error, setError };

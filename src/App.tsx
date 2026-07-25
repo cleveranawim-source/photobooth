@@ -90,7 +90,8 @@ export default function App() {
   // camera 객체 전체를 의존성에 넣으면 렌더마다 새 객체라 매 렌더 재부착되어 재생이 끊깁니다.
   const attachCamera = camera.attach;
   useEffect(() => {
-    if (phase === "camera") attachCamera([videoRef.current, glowVideoRef.current]);
+    if (phase !== "camera") return;
+    return attachCamera([videoRef.current, glowVideoRef.current]);
   }, [phase, filterKey, attachCamera]);
 
   const stopCamera = camera.stop;

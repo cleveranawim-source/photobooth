@@ -76,7 +76,8 @@ export function CaptureScreen({
             <span key={index} className={index < shotIndex ? "done" : ""} />
           ))}
         </div>
-        <p className="status">{status}</p>
+        {/* 첫 프레임이 들어오기 전에는 촬영 버튼이 잠겨 있으므로, 왜 못 누르는지 알려줍니다. */}
+        <p className="status">{!ready && !shooting ? "카메라를 준비하는 중이에요…" : status}</p>
       </div>
 
       <div className="capture-actions">
