@@ -13,7 +13,14 @@ import { roundedRect } from "./canvas";
 type Tile = { w: number; h: number };
 
 type Painter = {
-  tile: (context: CanvasRenderingContext2D, frame: Frame, tile: Tile, title: TextSlot) => void;
+  /** cells 는 사진이 덮을 자리 — 장식을 그쪽에 몰아 두면 안 보이므로 여백을 노리는 데 씁니다. */
+  tile: (
+    context: CanvasRenderingContext2D,
+    frame: Frame,
+    tile: Tile,
+    title: TextSlot,
+    cells: LayoutCell[],
+  ) => void;
   cell?: (
     context: CanvasRenderingContext2D,
     frame: Frame,
@@ -540,6 +547,307 @@ const kraft: Painter = {
   },
 };
 
+// ── 스티커 콜라주 ────────────────────────────────────────────────────
+// 찢어 붙인 색종이 위에 다이컷 스티커를 잔뜩 올린 느낌(수련회 포스터 계열).
+// 스티커는 흰 테두리 → 본체 → 검정 키라인 순서로 그려야 오려 붙인 것처럼 보입니다.
+
+const SCRAP_COLORS = [
+  "#f2549a", "#7fd4c1", "#ffd84d", "#9b7fd4",
+  "#5b9bd5", "#f58a3c", "#8cc63f", "#f5eedc",
+];
+
+/** 흰 테두리 + 본체 + 검정 키라인. path 는 여러 번 호출되므로 매번 새로 그려야 합니다. */
+function sticker(
+  context: CanvasRenderingContext2D,
+  path: () => void,
+  fill: string,
+  size: number,
+) {
+  context.save();
+  context.lineJoin = "round";
+  context.lineCap = "round";
+  context.strokeStyle = "#ffffff";
+  context.lineWidth = size * 0.36;
+  path();
+  context.stroke();
+  context.fillStyle = fill;
+  path();
+  context.fill();
+  context.strokeStyle = "#1a1a1a";
+  context.lineWidth = size * 0.1;
+  path();
+  context.stroke();
+  context.restore();
+}
+
+/** 찢어진 종이 조각 — 가장자리를 살짝 들쭉날쭉하게 만듭니다. */
+function scrap(
+  context: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  w: number,
+  h: number,
+  angle: number,
+  color: string,
+  seed: number,
+) {
+  context.save();
+  context.translate(cx, cy);
+  context.rotate(angle);
+  context.beginPath();
+  const jag = Math.min(w, h) * 0.06;
+  const steps = 7;
+  const corners: [number, number][] = [
+    [-w / 2, -h / 2], [w / 2, -h / 2], [w / 2, h / 2], [-w / 2, h / 2],
+  ];
+  let k = seed;
+  corners.forEach(([x0, y0], index) => {
+    const [x1, y1] = corners[(index + 1) % 4];
+    for (let s = 0; s < steps; s += 1) {
+      const t = s / steps;
+      k += 1;
+      const off = (rand(k) - 0.5) * jag;
+      const px = x0 + (x1 - x0) * t + (y1 - y0 ? off : 0);
+      const py = y0 + (y1 - y0) * t + (x1 - x0 ? off : 0);
+      if (index === 0 && s === 0) context.moveTo(px, py);
+      else context.lineTo(px, py);
+    }
+  });
+  context.closePath();
+  context.fillStyle = color;
+  context.fill();
+  context.restore();
+}
+
+function pixelHeart(context: CanvasRenderingContext2D, cx: number, cy: number, unit: number, color: string) {
+  const grid = [
+    "011011 0",
+    "111111 1",
+    "111111 1",
+    "011111 0",
+    "001110 0",
+    "000100 0",
+  ].map((row) => row.replace(/\s/g, ""));
+  const w = grid[0].length;
+  context.save();
+  context.fillStyle = color;
+  grid.forEach((row, y) => {
+    for (let x = 0; x < row.length; x += 1) {
+      if (row[x] === "1") {
+        context.fillRect(cx + (x - w / 2) * unit, cy + (y - grid.length / 2) * unit, unit + 0.6, unit + 0.6);
+      }
+    }
+  });
+  context.restore();
+}
+
+function smiley(context: CanvasRenderingContext2D, cx: number, cy: number, r: number) {
+  sticker(context, () => {
+    context.beginPath();
+    context.arc(cx, cy, r, 0, Math.PI * 2);
+  }, "#ffd84d", r * 0.5);
+  context.save();
+  context.fillStyle = "#1a1a1a";
+  const er = r * 0.13;
+  context.beginPath();
+  context.arc(cx - r * 0.34, cy - r * 0.22, er, 0, Math.PI * 2);
+  context.arc(cx + r * 0.34, cy - r * 0.22, er, 0, Math.PI * 2);
+  context.fill();
+  context.strokeStyle = "#1a1a1a";
+  context.lineWidth = r * 0.13;
+  context.lineCap = "round";
+  context.beginPath();
+  context.arc(cx, cy + r * 0.06, r * 0.48, 0.35, Math.PI - 0.35);
+  context.stroke();
+  context.restore();
+}
+
+function butterfly(context: CanvasRenderingContext2D, cx: number, cy: number, s: number, color: string) {
+  sticker(context, () => {
+    context.beginPath();
+    context.ellipse(cx - s * 0.42, cy - s * 0.28, s * 0.44, s * 0.36, -0.5, 0, Math.PI * 2);
+    context.ellipse(cx + s * 0.42, cy - s * 0.28, s * 0.44, s * 0.36, 0.5, 0, Math.PI * 2);
+    context.ellipse(cx - s * 0.34, cy + s * 0.34, s * 0.32, s * 0.28, 0.4, 0, Math.PI * 2);
+    context.ellipse(cx + s * 0.34, cy + s * 0.34, s * 0.32, s * 0.28, -0.4, 0, Math.PI * 2);
+  }, color, s * 0.42);
+}
+
+function starShape(context: CanvasRenderingContext2D, cx: number, cy: number, r: number, color: string) {
+  sticker(context, () => {
+    context.beginPath();
+    for (let i = 0; i < 10; i += 1) {
+      const rad = i % 2 === 0 ? r : r * 0.44;
+      const a = (Math.PI / 5) * i - Math.PI / 2;
+      const px = cx + rad * Math.cos(a);
+      const py = cy + rad * Math.sin(a);
+      if (i === 0) context.moveTo(px, py);
+      else context.lineTo(px, py);
+    }
+    context.closePath();
+  }, color, r * 0.5);
+}
+
+function musicNote(context: CanvasRenderingContext2D, cx: number, cy: number, s: number) {
+  context.save();
+  context.strokeStyle = "#1a1a1a";
+  context.fillStyle = "#1a1a1a";
+  context.lineWidth = s * 0.16;
+  context.lineCap = "round";
+  context.beginPath();
+  context.ellipse(cx - s * 0.28, cy + s * 0.55, s * 0.34, s * 0.26, -0.35, 0, Math.PI * 2);
+  context.fill();
+  context.beginPath();
+  context.moveTo(cx + s * 0.02, cy + s * 0.5);
+  context.lineTo(cx + s * 0.02, cy - s * 0.6);
+  context.lineTo(cx + s * 0.6, cy - s * 0.9);
+  context.stroke();
+  context.restore();
+}
+
+/** 손으로 그은 낙서선 — 지그재그·물결. */
+function doodle(context: CanvasRenderingContext2D, x: number, y: number, s: number, seed: number) {
+  context.save();
+  context.strokeStyle = "#1a1a1a";
+  context.lineWidth = Math.max(2, s * 0.09);
+  context.lineCap = "round";
+  context.beginPath();
+  context.moveTo(x, y);
+  for (let i = 1; i <= 5; i += 1) {
+    context.quadraticCurveTo(
+      x + s * (i - 0.5) * 0.4,
+      y + (i % 2 === 0 ? -s * 0.4 : s * 0.4) * (0.6 + rand(seed + i) * 0.8),
+      x + s * i * 0.4,
+      y,
+    );
+  }
+  context.stroke();
+  context.restore();
+}
+
+type Region = [number, number, number, number, number];
+
+const stickerDecor: Painter = {
+  tile: (context, _frame, tile, _title, cells) => {
+    const unit = Math.min(tile.w, tile.h);
+
+    // 사진이 덮을 영역. 장식을 여기 두면 안 보이므로, 스티커는 이 바깥과 경계에만 놓습니다.
+    const box = cells.length
+      ? {
+          x0: Math.min(...cells.map((c) => c.x)),
+          y0: Math.min(...cells.map((c) => c.y)),
+          x1: Math.max(...cells.map((c) => c.x + c.w)),
+          y1: Math.max(...cells.map((c) => c.y + c.h)),
+        }
+      : { x0: tile.w, y0: tile.h, x1: 0, y1: 0 };
+
+    // 스티커가 종이 밖으로 잘리지 않게 물리는 여유. 조각 하나가 반쯤 잘리면 지저분해 보입니다.
+    const inset = unit * 0.125;
+    const clamp = (p: { x: number; y: number }) => ({
+      x: Math.min(Math.max(p.x, inset), tile.w - inset),
+      y: Math.min(Math.max(p.y, inset), tile.h - inset),
+    });
+
+    /** 여백(머리·발치·좌우) 안의 한 점. 사진에 가리지 않는 자리만 고릅니다. */
+    const spotInMargin = (seed: number) => clamp(pickRegion(seed));
+
+    const pickRegion = (seed: number) => {
+      const top = box.y0;
+      const bottom = tile.h - box.y1;
+      const side = Math.max(box.x0, tile.w - box.x1);
+      // [x, y, 폭, 높이, 넓이가중치] — 넓은 여백일수록 스티커가 많이 붙습니다.
+      const candidates: Region[] = [
+        [0, 0, tile.w, top, top * tile.w],                       // 머리
+        [0, box.y1, tile.w, bottom, bottom * tile.w],            // 발치
+        [0, box.y0, box.x0, box.y1 - box.y0, side * (box.y1 - box.y0)], // 왼쪽
+        [box.x1, box.y0, tile.w - box.x1, box.y1 - box.y0, side * (box.y1 - box.y0)], // 오른쪽
+      ];
+      // 스티커 한 장이 통째로 들어갈 수 없는 좁은 여백은 아예 뺍니다.
+      // (세로 스트립의 좌우 여백은 40px 뿐이라, 여기에 놓으면 반드시 잘립니다.)
+      const regions = candidates.filter((r) => r[2] > unit * 0.2 && r[3] > unit * 0.2);
+      if (!regions.length) return { x: rand(seed) * tile.w, y: rand(seed + 1) * tile.h };
+      const total = regions.reduce((sum, r) => sum + r[4], 0);
+      let pick = rand(seed + 7) * total;
+      for (const [rx, ry, rw, rh, weight] of regions) {
+        if (pick <= weight) return { x: rx + rand(seed + 3) * rw, y: ry + rand(seed + 5) * rh };
+        pick -= weight;
+      }
+      const [rx, ry, rw, rh] = regions[0];
+      return { x: rx + rand(seed + 3) * rw, y: ry + rand(seed + 5) * rh };
+    };
+
+    // ① 찢어 붙인 색종이 — 종이 전체를 촘촘히 덮어 여백이 어디서 잘려도 색이 나오게 합니다.
+    for (let i = 0; i < 22; i += 1) {
+      scrap(
+        context,
+        rand(i + 1) * tile.w,
+        rand(i + 40) * tile.h,
+        unit * (0.30 + rand(i + 71) * 0.40),
+        unit * (0.18 + rand(i + 91) * 0.26),
+        (rand(i + 111) - 0.5) * 0.7,
+        SCRAP_COLORS[i % SCRAP_COLORS.length],
+        i * 17,
+      );
+    }
+
+    // ② 마스킹 테이프 — 여백에
+    for (let i = 0; i < 3; i += 1) {
+      const p = spotInMargin(i * 31 + 5);
+      tape(context, p.x, p.y, unit * 0.26, unit * 0.07, (rand(i + 65) - 0.5) * 1.4, i % 2 ? "#ffd84d" : "#7fd4c1");
+    }
+
+    // ③ 낙서선 + 스티커 — 전부 여백 기준. 사진을 살짝 물어도 겹쳐 붙인 느낌이라 자연스럽습니다.
+    for (let i = 0; i < 3; i += 1) {
+      const p = spotInMargin(i * 41 + 200);
+      doodle(context, p.x, p.y, unit * 0.10, i * 9);
+    }
+    const s = unit * 0.11;
+    for (let i = 0; i < 6; i += 1) {
+      const p = spotInMargin(i * 53 + 300);
+      pixelHeart(context, p.x, p.y, s * 0.2, i % 2 ? "#e23b3b" : "#f2549a");
+    }
+    for (let i = 0; i < 4; i += 1) {
+      const p = spotInMargin(i * 59 + 400);
+      smiley(context, p.x, p.y, s * (0.62 + rand(i + 430) * 0.3));
+    }
+    for (let i = 0; i < 3; i += 1) {
+      const p = spotInMargin(i * 61 + 500);
+      butterfly(context, p.x, p.y, s * 0.72, i % 2 ? "#9b7fd4" : "#5b9bd5");
+    }
+    for (let i = 0; i < 4; i += 1) {
+      const p = spotInMargin(i * 67 + 600);
+      starShape(context, p.x, p.y, s * 0.46, "#ffd84d");
+    }
+    for (let i = 0; i < 3; i += 1) {
+      const p = spotInMargin(i * 71 + 700);
+      musicNote(context, p.x, p.y, s * 0.46);
+    }
+  },
+  cell: (context, frame, cell, index) => {
+    // 사진도 오려 붙인 스티커처럼 — 두꺼운 흰 테두리 + 검정 키라인
+    const r = frame.photoRadius;
+    context.save();
+    context.lineJoin = "round";
+    context.strokeStyle = "#ffffff";
+    context.lineWidth = Math.min(cell.w, cell.h) * 0.055;
+    roundedRect(context, cell.x, cell.y, cell.w, cell.h, r);
+    context.stroke();
+    context.strokeStyle = "#1a1a1a";
+    context.lineWidth = Math.min(cell.w, cell.h) * 0.016;
+    roundedRect(context, cell.x, cell.y, cell.w, cell.h, r);
+    context.stroke();
+    context.restore();
+
+    // 귀퉁이에 스티커 한두 개
+    const s = Math.min(cell.w, cell.h) * 0.2;
+    if (index % 2 === 0) {
+      smiley(context, cell.x + cell.w - s * 0.35, cell.y + s * 0.3, s * 0.32);
+    } else {
+      pixelHeart(context, cell.x + s * 0.32, cell.y + s * 0.28, s * 0.075, "#e23b3b");
+    }
+    if (index === 1) starShape(context, cell.x + s * 0.3, cell.y + cell.h - s * 0.3, s * 0.26, "#ffd84d");
+  },
+};
+
 // ── 기본(장식 없는 프레임용) ─────────────────────────────────────────
 const plain: Painter = {
   tile: (context, frame, tile) => {
@@ -567,6 +875,7 @@ const PAINTERS: Record<Frame["decor"], Painter> = {
   blossom,
   forest,
   kraft,
+  sticker: stickerDecor,
 };
 
 /** 조각 바탕색을 칠하고 프레임 장식을 얹습니다(사진 아래). */
@@ -575,10 +884,11 @@ export function paintTile(
   frame: Frame,
   tile: Tile,
   title: TextSlot,
+  cells: LayoutCell[],
 ) {
   context.fillStyle = frame.paper;
   context.fillRect(0, 0, tile.w, tile.h);
-  PAINTERS[frame.decor].tile(context, frame, tile, title);
+  PAINTERS[frame.decor].tile(context, frame, tile, title, cells);
 }
 
 /** 사진 한 칸을 그린 직후의 장식(테두리·테이프·번호 등). */

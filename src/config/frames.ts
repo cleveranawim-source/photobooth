@@ -111,6 +111,20 @@ export const FRAMES: Frame[] = [
     titleFont: "hand",
     photoRadius: 8,
   },
+  {
+    key: "sticker",
+    name: "스티커 콜라주",
+    hint: "찢은 색종이에 스티커 잔뜩",
+    paper: "#b9c4e6",
+    mat: "#f5eedc",
+    ink: "#1a1a1a",
+    sub: "#3f5aa6",
+    accent: "#f2549a",
+    decor: "sticker",
+    titleFont: "sans",
+    photoRadius: 16,
+    textPlate: true, // 바탕이 알록달록해서 글자를 흰 라벨판에 올려야 읽힙니다
+  },
 ];
 
 export const DEFAULT_FRAME = FRAMES[0].key;

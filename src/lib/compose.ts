@@ -37,16 +37,33 @@ function drawText(
   context: CanvasRenderingContext2D,
   text: string,
   slot: TextSlot,
-  options: { font: string; weight: number; color: string; tracking?: number },
+  options: { font: string; weight: number; color: string; tracking?: number; plate?: boolean },
 ) {
   if (!text) return;
   context.save();
-  context.fillStyle = options.color;
   context.textAlign = "center";
   context.textBaseline = "middle";
   context.font = `${options.weight} ${slot.size}px ${options.font}`;
   // letterSpacing 은 Safari 17.4+/Chrome 지원. 미지원 기기에서는 조용히 무시됩니다.
   if (options.tracking) context.letterSpacing = `${options.tracking}px`;
+
+  // 알록달록한 바탕에서는 글자만 얹으면 안 읽혀, 흰 라벨판을 깔아 줍니다(스티커처럼).
+  if (options.plate) {
+    const measured = Math.min(context.measureText(text).width, slot.maxWidth ?? Infinity);
+    const plateW = measured + slot.size * 0.9;
+    const plateH = slot.size * 1.6;
+    context.save();
+    context.fillStyle = "#ffffff";
+    context.strokeStyle = "#1a1a1a";
+    context.lineWidth = Math.max(2, slot.size * 0.085);
+    context.lineJoin = "round";
+    roundedRect(context, slot.x - plateW / 2, slot.y - plateH / 2, plateW, plateH, plateH * 0.38);
+    context.fill();
+    context.stroke();
+    context.restore();
+  }
+
+  context.fillStyle = options.color;
   context.fillText(text, slot.x, slot.y, slot.maxWidth);
   context.restore();
 }
@@ -102,7 +119,7 @@ export async function composePrint({
     context.rect(0, 0, layout.tile.w, layout.tile.h);
     context.clip();
 
-    paintTile(context, frame, layout.tile, layout.title);
+    paintTile(context, frame, layout.tile, layout.title, layout.cells);
 
     layout.cells.forEach((cell, index) => {
       const image = loaded[index];
@@ -119,21 +136,22 @@ export async function composePrint({
       paintCell(context, frame, cell, index, layout.tile);
     });
 
-    drawText(context, title, layout.title, { font: titleFont, weight: 800, color: frame.ink });
+    drawText(context, title, layout.title, { font: titleFont, weight: 800, color: frame.ink, plate: frame.textPlate });
     drawText(context, tagline.toUpperCase(), layout.tagline, {
       font: bodyFont,
       weight: 700,
       color: frame.accent,
       tracking: Math.max(1, Math.round(layout.tagline.size * 0.14)),
+      plate: frame.textPlate,
     });
-    drawText(context, caption, layout.caption, { font: titleFont, weight: 800, color: frame.ink });
+    drawText(context, caption, layout.caption, { font: titleFont, weight: 800, color: frame.ink, plate: frame.textPlate });
 
     context.globalAlpha = 0.7;
     drawText(
       context,
       layout.tiles.length > 1 ? `${stamp}  ·  #${String(tileIndex + 1).padStart(2, "0")}` : stamp,
       layout.stamp,
-      { font: monoFont, weight: 600, color: frame.sub },
+      { font: monoFont, weight: 600, color: frame.sub, plate: frame.textPlate },
     );
     context.globalAlpha = 1;
 

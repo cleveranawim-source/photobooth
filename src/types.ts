@@ -16,7 +16,8 @@ export type Decor =
   | "soda"
   | "blossom"
   | "forest"
-  | "kraft";
+  | "kraft"
+  | "sticker";
 
 export type FontKey = "sans" | "serif" | "mono" | "hand";
 
@@ -39,6 +40,11 @@ export type Frame = {
   decor: Decor;
   titleFont: FontKey;
   photoRadius: number;
+  /**
+   * 글자를 흰 라벨판 위에 얹을지. 바탕이 알록달록한 프레임은 이걸 켜야 글자가 읽힙니다
+   * (스티커 콜라주처럼). 켜지 않으면 종이 위에 바로 씁니다.
+   */
+  textPlate?: boolean;
 };
 
 export type LayoutCell = { x: number; y: number; w: number; h: number };
