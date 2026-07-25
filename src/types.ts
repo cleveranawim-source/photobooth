@@ -6,8 +6,17 @@ export type Phase = "welcome" | "camera" | "select" | "result" | "admin";
 /** 전면 카메라(렌즈)가 있는 화면 가장자리 — 카운트다운을 그쪽에 붙여 시선을 렌즈로 모읍니다. */
 export type CamEdge = "top" | "left" | "right";
 
-/** 인화물 장식 스타일. lib/decor.ts 가 이 값에 따라 캔버스에 다른 장식을 그립니다. */
-export type Decor = "plain" | "classic" | "arcade" | "riso" | "film";
+/** 인화물 장식 스타일. lib/decor.ts 가 이 값에 따라 바탕과 사진칸을 다르게 꾸밉니다. */
+export type Decor =
+  | "plain"
+  | "classic"
+  | "arcade"
+  | "riso"
+  | "film"
+  | "soda"
+  | "blossom"
+  | "forest"
+  | "kraft";
 
 export type FontKey = "sans" | "serif" | "mono";
 

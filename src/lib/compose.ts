@@ -1,7 +1,7 @@
 import type { Frame, Layout, TextSlot } from "../types";
 import { FONT_STACKS } from "../config/frames";
 import { drawCover, loadImage, roundedRect } from "./canvas";
-import { paintTile } from "./decor";
+import { paintCell, paintTile } from "./decor";
 
 // 인화용 합성기. 레이아웃(칸 위치)과 프레임(색·장식)만 보고 그리므로,
 // 새 레이아웃·프레임을 추가할 때 이 파일은 건드리지 않아도 됩니다.
@@ -43,6 +43,12 @@ export type ComposeInput = {
   title: string;
   tagline: string;
   caption: string;
+  /**
+   * 300dpi 대비 배율. 기본 2배는 인화·저장용이고, 선택 화면 썸네일은 0.2 정도로 줄여 씁니다.
+   * 썸네일도 **같은 그리기 코드**를 타야 고를 때 본 것과 실제 인화물이 어긋나지 않습니다.
+   */
+  scale?: number;
+  quality?: number;
 };
 
 export async function composePrint({
@@ -52,15 +58,17 @@ export async function composePrint({
   title,
   tagline,
   caption,
+  scale = SUPERSAMPLE,
+  quality = 0.92,
 }: ComposeInput): Promise<string> {
   const loaded = await Promise.all(images.slice(0, layout.cells.length).map(loadImage));
   const canvas = document.createElement("canvas");
-  canvas.width = layout.paper.w * DPI * SUPERSAMPLE;
-  canvas.height = layout.paper.h * DPI * SUPERSAMPLE;
+  canvas.width = Math.round(layout.paper.w * DPI * scale);
+  canvas.height = Math.round(layout.paper.h * DPI * scale);
   const context = canvas.getContext("2d", { alpha: false });
   if (!context) throw new Error("사진을 만들 수 없습니다.");
   // 아래 그리기 코드는 전부 300dpi 좌표계를 그대로 씁니다.
-  context.scale(SUPERSAMPLE, SUPERSAMPLE);
+  context.scale(scale, scale);
   context.imageSmoothingEnabled = true;
   context.imageSmoothingQuality = "high";
 
@@ -89,6 +97,8 @@ export async function composePrint({
         drawCover(context, image, image.naturalWidth, image.naturalHeight, cell.x, cell.y, cell.w, cell.h);
       }
       context.restore();
+      // 사진 위·둘레 장식(테두리·테이프·컷 번호 등)은 클립을 푼 뒤에 그립니다.
+      paintCell(context, frame, cell, index, layout.tile);
     });
 
     drawText(context, title, layout.title, { font: titleFont, weight: 800, color: frame.ink });
@@ -133,7 +143,7 @@ export async function composePrint({
   }
 
   // 2배 해상도라 0.92 로도 인쇄·확대 화질이 충분하고 파일 크기를 줄입니다.
-  return canvas.toDataURL("image/jpeg", 0.92);
+  return canvas.toDataURL("image/jpeg", quality);
 }
 
 /** 카메라 없이 전체 흐름을 둘러볼 때 쓰는 가짜 사진들. */

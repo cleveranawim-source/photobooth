@@ -1,8 +1,9 @@
 import { useRef } from "react";
 import type { Frame, FilterDef, Layout } from "../types";
 import { Icon } from "../components/Icon";
-import { LayoutThumb } from "../components/Previews";
+import { PrintPreview } from "../components/Previews";
 import { shotsNeeded } from "../config/layouts";
+import { framePreviewKey, layoutPreviewKey } from "../hooks/usePrintPreviews";
 
 type Props = {
   title: string;
@@ -16,6 +17,8 @@ type Props = {
   filterKey: string;
   caption: string;
   shootCount: number;
+  /** 실제 합성기로 만든 작은 인화물 미리보기 (usePrintPreviews) */
+  previews: Record<string, string>;
   onFrame: (key: string) => void;
   onLayout: (key: string) => void;
   onFilter: (key: string) => void;
@@ -37,6 +40,7 @@ export function WelcomeScreen({
   filterKey,
   caption,
   shootCount,
+  previews,
   onFrame,
   onLayout,
   onFilter,
@@ -95,7 +99,12 @@ export function WelcomeScreen({
                 aria-pressed={layout.key === layoutKey}
                 onClick={() => onLayout(layout.key)}
               >
-                <LayoutThumb layout={layout} frame={frame} />
+                <PrintPreview
+                  layout={layout}
+                  frame={frame}
+                  src={previews[layoutPreviewKey(layout.key)]}
+                  alt={`${layout.name} 미리보기`}
+                />
                 <strong>{layout.name}</strong>
                 <small>{layout.hint}</small>
               </button>
@@ -116,8 +125,13 @@ export function WelcomeScreen({
                 aria-pressed={item.key === frameKey}
                 onClick={() => onFrame(item.key)}
               >
-                {/* 고른 레이아웃을 그 프레임 색으로 그려, 인화물이 어떻게 나올지 바로 보이게 합니다. */}
-                <LayoutThumb layout={activeLayout} frame={item} />
+                {/* 고른 레이아웃을 그 프레임으로 합성해, 인화물이 어떻게 나올지 그대로 보여줍니다. */}
+                <PrintPreview
+                  layout={activeLayout}
+                  frame={item}
+                  src={previews[framePreviewKey(item.key)]}
+                  alt={`${item.name} 미리보기`}
+                />
                 <strong>{item.name}</strong>
                 <small>{item.hint}</small>
               </button>

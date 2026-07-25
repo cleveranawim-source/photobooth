@@ -1,11 +1,27 @@
 import type { Frame, Layout, TextSlot } from "../types";
 
 /**
- * 인화물 미리보기 — 실제 칸 좌표를 그대로 축소해 그립니다.
- * 앱 화면 색은 프레임을 따라가지 않으므로(고정 팔레트), 사용자가 무엇을 고르는지 알 수 있는
- * 유일한 단서가 이 그림입니다. 그래서 사진 칸뿐 아니라 글자 자리까지 색 막대로 흉내 냅니다.
+ * 선택 칸에 들어가는 인화물 미리보기.
+ * 실제 합성기를 축소 배율로 돌린 그림(usePrintPreviews)이 오면 그걸 보여주고,
+ * 아직 만들어지기 전에는 아래 SVG 자리표시로 구조만 먼저 보여줍니다.
  */
-export function LayoutThumb({ layout, frame }: { layout: Layout; frame: Frame }) {
+export function PrintPreview({
+  layout,
+  frame,
+  src,
+  alt,
+}: {
+  layout: Layout;
+  frame: Frame;
+  src?: string;
+  alt: string;
+}) {
+  if (src) return <img className="layout-thumb" src={src} alt={alt} />;
+  return <LayoutThumb layout={layout} frame={frame} />;
+}
+
+/** 합성 전에 잠깐 보여주는 자리표시 — 칸 위치와 색만 대강 흉내 냅니다. */
+function LayoutThumb({ layout, frame }: { layout: Layout; frame: Frame }) {
   const width = layout.paper.w * 300;
   const height = layout.paper.h * 300;
 

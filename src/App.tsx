@@ -18,6 +18,7 @@ import {
 import { buildTimelapse, startTimelapseCapture, type Clip } from "./lib/timelapse";
 import { useCamera } from "./hooks/useCamera";
 import { useIdleReset, useWakeLock } from "./hooks/useKiosk";
+import { usePrintPreviews } from "./hooks/usePrintPreviews";
 import { WelcomeScreen } from "./screens/WelcomeScreen";
 import { CaptureScreen } from "./screens/CaptureScreen";
 import { SelectScreen } from "./screens/SelectScreen";
@@ -67,6 +68,16 @@ export default function App() {
   const totalShots = Math.max(settings.shootCount, needed);
   // 촬영 캔버스를 합성 시 차지할 픽셀 폭에 맞춰 잡으면 1:1 로 들어가 다시 스케일되지 않습니다.
   const captureWidth = Math.round(layout.cells[0].w * 2);
+
+  const previews = usePrintPreviews({
+    frames,
+    layouts,
+    frame,
+    layout,
+    title: settings.title,
+    tagline: settings.tagline,
+    caption,
+  });
 
   // 인쇄 용지 크기는 레이아웃마다 달라 @page 를 동적으로 갈아 끼웁니다.
   useEffect(() => {
@@ -288,6 +299,7 @@ export default function App() {
           filterKey={filterKey}
           caption={caption}
           shootCount={totalShots}
+          previews={previews}
           onFrame={setFrameKey}
           onLayout={setLayoutKey}
           onFilter={setFilterKey}

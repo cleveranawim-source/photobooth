@@ -253,8 +253,9 @@ button:disabled {
 
 .layout-list {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
   gap: 10px;
+  align-items: start;
 }
 
 .layout-card {
@@ -283,10 +284,15 @@ button:disabled {
   color: var(--sub);
 }
 
+/* 실제 합성물이 들어오는 자리. 프레임의 장식(테이프·반짝임·컷번호)이 보이려면
+   너무 작으면 안 되므로 넉넉히 잡습니다 — 여기서 고른 대로 인화되기 때문입니다. */
 .layout-thumb {
+  display: block;
   width: 100%;
-  max-width: 62px;
-  height: 74px;
+  max-width: 88px;
+  /* 높이를 고정하지 않고 용지 비율대로 둡니다 — 가로 레이아웃(6×4)이 가로로 납작하게
+     보여야 어떤 모양으로 인화되는지 한눈에 들어옵니다. */
+  height: auto;
   border-radius: 4px;
   /* 바탕이 밝은 프레임(소다 팝 등)은 흰 카드 위에서 경계가 사라지므로 테두리가 필요합니다. */
   border: 1px solid var(--edge);
@@ -305,8 +311,9 @@ button:disabled {
 /* 인화 프레임 고르기 — 고른 레이아웃을 각 프레임 색으로 그려 인화물을 미리 보여줍니다. */
 .frame-list {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
   gap: 10px;
+  align-items: start;
 }
 
 .frame-card {
@@ -337,8 +344,7 @@ button:disabled {
 }
 
 .frame-card .layout-thumb {
-  max-width: 54px;
-  height: 66px;
+  max-width: 84px;
 }
 
 .frame-chip {
