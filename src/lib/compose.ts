@@ -13,6 +13,21 @@ import { paintCell, paintTile } from "./decor";
 const SUPERSAMPLE = 2;
 const DPI = 300;
 
+/**
+ * 캔버스는 아직 안 받은 웹폰트로 그리라고 하면 **조용히 기본 폰트로 떨어집니다**(오류도 없음).
+ * 그래서 그리기 전에 실제로 찍을 글자를 넘겨 필요한 서브셋까지 확실히 받아 둡니다.
+ * (구글 서브셋 폰트는 unicode-range 로 쪼개져 있어, 쓰는 글자를 알려줘야 그 조각을 받습니다.)
+ */
+async function ensurePrintFonts(sample: string) {
+  if (!document.fonts?.load) return;
+  const faces = Object.values(FONT_STACKS).map((stack) => `800 52px ${stack}`);
+  try {
+    await Promise.all(faces.map((face) => document.fonts.load(face, sample)));
+  } catch {
+    // 폰트를 못 받아도 기본 글꼴로 그립니다 — 인화 자체가 막히면 안 되니까요.
+  }
+}
+
 const dateStamp = () =>
   new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" }).format(
     new Date(),
@@ -61,7 +76,11 @@ export async function composePrint({
   scale = SUPERSAMPLE,
   quality = 0.92,
 }: ComposeInput): Promise<string> {
-  const loaded = await Promise.all(images.slice(0, layout.cells.length).map(loadImage));
+  const stamp = dateStamp();
+  const [loaded] = await Promise.all([
+    Promise.all(images.slice(0, layout.cells.length).map(loadImage)),
+    ensurePrintFonts(`${title}${tagline}${tagline.toUpperCase()}${caption}${stamp}#0123456789`),
+  ]);
   const canvas = document.createElement("canvas");
   canvas.width = Math.round(layout.paper.w * DPI * scale);
   canvas.height = Math.round(layout.paper.h * DPI * scale);
@@ -75,7 +94,6 @@ export async function composePrint({
   const titleFont = FONT_STACKS[frame.titleFont];
   const bodyFont = FONT_STACKS.sans;
   const monoFont = FONT_STACKS.mono;
-  const stamp = dateStamp();
 
   layout.tiles.forEach((tile, tileIndex) => {
     context.save();

@@ -13,7 +13,11 @@ body,
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", sans-serif;
+  /* 자가호스팅 Pretendard 가 먼저입니다. 예전 스택은 -apple-system 이 앞이라
+     Pretendard 가 있어도 절대 쓰이지 않는 죽은 항목이었습니다. */
+  font-family: "Pretendard", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif;
+  /* 한글은 자간을 아주 살짝 조이면 훨씬 정돈돼 보입니다. */
+  letter-spacing: -0.01em;
   background: #eaf6ff;
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;

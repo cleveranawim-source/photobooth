@@ -18,7 +18,7 @@ export type Decor =
   | "forest"
   | "kraft";
 
-export type FontKey = "sans" | "serif" | "mono";
+export type FontKey = "sans" | "serif" | "mono" | "hand";
 
 /**
  * 인화물(종이)의 옷차림. **앱 화면 색과는 무관합니다** — 앱 인터페이스는 styles.css 에
