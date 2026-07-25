@@ -1,7 +1,7 @@
 {
-  "name": "포토부스",
-  "short_name": "사진관",
-  "description": "iPad로 찍고 AirPrint로 인화하는 포토부스",
+  "name": "4컷 사진",
+  "short_name": "4컷 사진",
+  "description": "iPad로 찍고 AirPrint로 인화하는 4컷 사진",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",

@@ -13,7 +13,7 @@ function download(url: string, filename: string) {
 }
 
 export function downloadImage(dataUrl: string) {
-  download(dataUrl, `사진관-${today()}.jpg`);
+  download(dataUrl, `4컷사진-${today()}.jpg`);
 }
 
 /**
@@ -24,9 +24,9 @@ export function downloadImage(dataUrl: string) {
 export async function shareImage(dataUrl: string) {
   try {
     const blob = await (await fetch(dataUrl)).blob();
-    const file = new File([blob], `사진관-${today()}.jpg`, { type: "image/jpeg" });
+    const file = new File([blob], `4컷사진-${today()}.jpg`, { type: "image/jpeg" });
     if (navigator.share && navigator.canShare?.({ files: [file] })) {
-      await navigator.share({ title: "사진관", files: [file] });
+      await navigator.share({ title: "4컷 사진", files: [file] });
       return;
     }
   } catch (caught) {
@@ -37,7 +37,7 @@ export async function shareImage(dataUrl: string) {
 }
 
 export async function shareClip(blob: Blob, ext: string) {
-  const file = new File([blob], `사진관-타임랩스-${today()}.${ext}`, { type: blob.type });
+  const file = new File([blob], `4컷사진-타임랩스-${today()}.${ext}`, { type: blob.type });
   try {
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       await navigator.share({ files: [file], title: "촬영 타임랩스" });
