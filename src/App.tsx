@@ -37,6 +37,12 @@ export default function App() {
   const [picked, setPicked] = useState<number[]>([]);
   const [composing, setComposing] = useState(false);
   const [composite, setComposite] = useState<string | null>(null);
+  /**
+   * 결과 화면에서 다시 합성할 때 쓸 사진들(고른 순서가 앞). 프레임·레이아웃·문구는
+   * 사진 자체를 바꾸지 않으므로, 다시 찍지 않고 이 사진들로 새로 꾸며주면 됩니다.
+   */
+  const [sourceShots, setSourceShots] = useState<string[]>([]);
+  const [sampleMode, setSampleMode] = useState(false);
   const [clip, setClip] = useState<Clip | null>(null);
   // 타임랩스를 실제로 만들고 있는 중일 때만 "만드는 중" 안내를 띄웁니다
   // (샘플 둘러보기처럼 촬영을 안 한 경우엔 영원히 안 나올 영상을 기다리게 두면 안 됩니다).
@@ -53,6 +59,8 @@ export default function App() {
   const glowVideoRef = useRef<HTMLVideoElement>(null);
   // 촬영 시퀀스의 세대 번호. 초기화 등으로 증가하면 진행 중이던 시퀀스가 스스로 중단됩니다.
   const runGenRef = useRef(0);
+  // 마지막으로 합성한 조건. 같은 조건이면 결과 화면에서 다시 합성하지 않습니다.
+  const composedSigRef = useRef("");
 
   const camera = useCamera();
   useWakeLock();
@@ -133,18 +141,68 @@ export default function App() {
     }
   };
 
+  // 지금 조합으로 합성한 적이 있는지 판별하는 서명. 결과 화면에서 무엇이든 바뀌면 달라집니다.
+  const composeSignature = [
+    frameKey,
+    layoutKey,
+    caption,
+    settings.title,
+    settings.tagline,
+    sampleMode ? "sample" : sourceShots.length,
+  ].join("|");
+
   const compose = useCallback(
-    (images: string[]) =>
-      composePrint({
+    async (images: string[]) => {
+      const result = await composePrint({
         images,
         frame,
         layout,
         title: settings.title,
         tagline: settings.tagline,
         caption,
-      }),
-    [frame, layout, settings.title, settings.tagline, caption],
+      });
+      composedSigRef.current = composeSignature;
+      return result;
+    },
+    [frame, layout, settings.title, settings.tagline, caption, composeSignature],
   );
+
+  /** 레이아웃이 요구하는 장수에 맞춰 사진을 고릅니다. 모자라면 앞에서부터 다시 씁니다. */
+  const imagesForLayout = useCallback(
+    (count: number) => {
+      if (sampleMode || !sourceShots.length) return makeSampleShots(count, ratio);
+      return Array.from({ length: count }, (_, index) => sourceShots[index % sourceShots.length]);
+    },
+    [sampleMode, sourceShots, ratio],
+  );
+
+  /**
+   * 결과 화면에서 프레임·레이아웃·문구를 바꾸면 다시 찍지 않고 새로 꾸며 줍니다.
+   * 문구는 한 글자마다 바뀌므로 잠깐 기다렸다 합성합니다.
+   */
+  useEffect(() => {
+    if (phase !== "result") return;
+    if (composedSigRef.current === composeSignature) return;
+    const gen = runGenRef.current;
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      setComposing(true);
+      void (async () => {
+        try {
+          const result = await compose(imagesForLayout(needed));
+          if (!cancelled && runGenRef.current === gen) setComposite(result);
+        } catch {
+          if (!cancelled) setError("사진을 다시 꾸미지 못했습니다.");
+        } finally {
+          if (!cancelled) setComposing(false);
+        }
+      })();
+    }, 260);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [phase, composeSignature, compose, imagesForLayout, needed]);
 
   const runSequence = async () => {
     if (!videoRef.current || !camera.ready || shooting) return;
@@ -206,6 +264,8 @@ export default function App() {
         return;
       }
       setStatus("사진을 꾸미고 있어요");
+      setSampleMode(false);
+      setSourceShots(frames);
       const result = await compose(frames);
       if (aborted()) return;
       setComposite(result);
@@ -235,7 +295,15 @@ export default function App() {
     setComposing(true);
     setError(null);
     try {
-      const result = await compose(picked.map((index) => shots[index]));
+      // 고른 순서가 앞, 안 고른 컷은 뒤 — 결과 화면에서 더 많은 칸이 필요한 레이아웃으로
+      // 바꿔도 남은 사진으로 채울 수 있게 해 둡니다.
+      const ordered = [
+        ...picked.map((index) => shots[index]),
+        ...shots.filter((_, index) => !picked.includes(index)),
+      ];
+      setSampleMode(false);
+      setSourceShots(ordered);
+      const result = await compose(ordered.slice(0, needed));
       if (runGenRef.current !== gen) return;
       setComposite(result);
       setPhase("result");
@@ -249,6 +317,8 @@ export default function App() {
 
   const openSample = async () => {
     setError(null);
+    setSampleMode(true);
+    setSourceShots([]);
     try {
       const result = await compose(makeSampleShots(needed, ratio));
       setComposite(result);
@@ -293,16 +363,14 @@ export default function App() {
           frame={frame}
           frames={frames}
           layouts={layouts}
-          filters={FILTERS}
           frameKey={frameKey}
           layoutKey={layoutKey}
-          filterKey={filterKey}
           caption={caption}
           shootCount={totalShots}
+          needed={needed}
           previews={previews}
           onFrame={setFrameKey}
           onLayout={setLayoutKey}
-          onFilter={setFilterKey}
           onCaption={setCaption}
           onStart={() => void startCamera()}
           onSample={() => void openSample()}
@@ -327,6 +395,10 @@ export default function App() {
           status={status}
           flash={flash}
           resolution={camera.resolution}
+          shots={shots}
+          filters={FILTERS}
+          filterKey={filterKey}
+          onFilter={setFilterKey}
           onShoot={() => void runSequence()}
           onBack={reset}
         />
@@ -349,9 +421,17 @@ export default function App() {
         <ResultScreen
           composite={composite}
           layout={layout}
+          layouts={layouts}
+          frames={frames}
+          frameKey={frameKey}
+          caption={caption}
           copies={settings.copies}
           clip={clip}
           clipPending={clipPending}
+          busy={composing}
+          onFrame={setFrameKey}
+          onLayout={setLayoutKey}
+          onCaption={setCaption}
           onPrint={() => printImage(composite)}
           onShare={() => void shareImage(composite)}
           onSaveClip={() => clip && void shareClip(clip.blob, clip.ext)}

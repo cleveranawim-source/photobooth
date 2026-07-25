@@ -8,7 +8,8 @@ export type IconName =
   | "lock"
   | "check"
   | "back"
-  | "grid";
+  | "grid"
+  | "zoom";
 
 const PATHS: Record<IconName, React.ReactNode> = {
   camera: (
@@ -56,6 +57,12 @@ const PATHS: Record<IconName, React.ReactNode> = {
   ),
   check: <path d="m4 12 5.5 5.5L20 7" />,
   back: <path d="M19 12H5m7-7-7 7 7 7" />,
+  zoom: (
+    <>
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-3.5-3.5M11 8.5v5M8.5 11h5" />
+    </>
+  ),
   grid: (
     <>
       <rect x="3" y="3" width="7.5" height="7.5" rx="1.5" />

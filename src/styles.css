@@ -38,10 +38,13 @@ label {
   --surface: #ffffff;
   --mat: #c4e2f7;
   --ink: #123a5c;
-  --sub: #5b7f9c;
+  /* 보조 텍스트. 이전 #5b7f9c 는 배경 위 3.86:1 로 WCAG AA(4.5:1)에 못 미쳤습니다 → 5.5:1 */
+  --sub: #47657f;
   --accent: #ff9f1c;
   /* 주황 위 흰 글씨는 대비가 2:1 정도라 읽기 어렵습니다 — 진한 남색을 얹습니다(약 5.6:1). */
   --on-accent: #123a5c;
+  /* 강조색을 '글자'로 쓸 때. --accent 를 그대로 쓰면 배경 위 1.87:1 로 사실상 안 읽힙니다. */
+  --accent-ink: #9a4f00;
   --radius: 18px;
   --shade: rgba(18, 58, 92, 0.07);
   /* 고르지 않은 칩·카드의 테두리. 칩이 --surface 위에 놓일 때 테두리가 없으면
@@ -210,12 +213,30 @@ button:disabled {
   font-weight: 800;
   letter-spacing: 0.24em;
   text-transform: uppercase;
-  color: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* 왼쪽 열의 큰 미리보기 — 고른 조합이 어떻게 인화되는지 바로 보여주고,
+   비어 있던 600px 남짓의 공간도 채웁니다. */
+.hero-preview {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  margin: 6px 0;
+}
+
+.hero-preview .layout-thumb {
+  max-width: min(100%, 300px);
+  max-height: 46vh;
+  width: auto;
+  height: auto;
+  border-radius: 8px;
+  border: 1px solid var(--edge);
 }
 
 .welcome-lead {
   margin: 0;
-  max-width: 30ch;
+  max-width: 34ch;
   font-size: 15px;
   line-height: 1.65;
   color: var(--sub);
@@ -226,6 +247,35 @@ button:disabled {
   flex-direction: column;
   gap: 22px;
   padding-bottom: 10px;
+}
+
+/* 다 고른 뒤 누르는 자리. 세로 화면에서 목록이 길어져도 바닥에 붙어 따라옵니다. */
+.start-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 0 12px;
+  margin-top: 4px;
+  background: linear-gradient(to bottom, transparent, var(--paper) 22%);
+}
+
+.start-bar .primary-button {
+  width: min(100%, 320px);
+  padding: 18px 30px;
+  font-size: 20px;
+}
+
+.text-link {
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--sub);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .option-group h2 {
@@ -284,15 +334,24 @@ button:disabled {
   color: var(--sub);
 }
 
+/* 미리보기가 들어가는 고정 높이 칸. 용지 비율이 제각각이라(4×6 세로, 6×4 가로)
+   그냥 두면 카드 높이가 달라져 글씨 줄이 어긋납니다 — 칸 높이를 맞추고 그 안에서 맞춥니다. */
+.thumb-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 116px;
+}
+
 /* 실제 합성물이 들어오는 자리. 프레임의 장식(테이프·반짝임·컷번호)이 보이려면
    너무 작으면 안 되므로 넉넉히 잡습니다 — 여기서 고른 대로 인화되기 때문입니다. */
 .layout-thumb {
   display: block;
-  width: 100%;
-  max-width: 88px;
-  /* 높이를 고정하지 않고 용지 비율대로 둡니다 — 가로 레이아웃(6×4)이 가로로 납작하게
-     보여야 어떤 모양으로 인화되는지 한눈에 들어옵니다. */
+  width: auto;
   height: auto;
+  max-width: 96px;
+  max-height: 100%;
   border-radius: 4px;
   /* 바탕이 밝은 프레임(소다 팝 등)은 흰 카드 위에서 경계가 사라지므로 테두리가 필요합니다. */
   border: 1px solid var(--edge);
@@ -343,8 +402,8 @@ button:disabled {
   color: var(--sub);
 }
 
-.frame-card .layout-thumb {
-  max-width: 84px;
+.frame-card .thumb-slot {
+  height: 108px;
 }
 
 .frame-chip {
@@ -394,17 +453,19 @@ button:disabled {
 }
 
 .pill {
-  padding: 10px 17px;
+  /* 터치 영역 44px 확보(애플 권장) — 이전 40px 은 조금 모자랐습니다. */
+  padding: 12px 18px;
   border-radius: 999px;
   border: 2px solid var(--edge);
   background: var(--surface);
   font-size: 14px;
   font-weight: 700;
+  line-height: 1.2;
 }
 
 .pill.selected {
   border-color: var(--accent);
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 /* ── 촬영 화면 ─────────────────────────────────────────────── */
@@ -472,8 +533,8 @@ button:disabled {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 112px;
-  height: 112px;
+  width: 124px;
+  height: 124px;
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.42);
   color: #fff;
@@ -485,6 +546,49 @@ button:disabled {
 .countdown.last {
   background: var(--accent);
   color: var(--on-accent);
+}
+
+/* 1초마다 줄어드는 링 — 숫자만 바뀌는 것보다 남은 시간이 몸으로 느껴집니다.
+   숫자가 바뀔 때 요소를 새로 그리므로(key) 애니메이션이 매번 처음부터 돕니다. */
+.countdown-ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.countdown-ring circle {
+  fill: none;
+  stroke-width: 6;
+  stroke-linecap: round;
+}
+
+.ring-track {
+  stroke: rgba(255, 255, 255, 0.25);
+}
+
+.ring-fill {
+  stroke: #fff;
+  stroke-dasharray: 283;
+  animation: ring-drain 1s linear forwards;
+}
+
+.countdown.last .ring-fill {
+  stroke: var(--on-accent);
+}
+
+.countdown.last .ring-track {
+  stroke: rgba(18, 58, 92, 0.25);
+}
+
+@keyframes ring-drain {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: 283;
+  }
 }
 
 .look-here {
@@ -544,20 +648,59 @@ button:disabled {
   top: calc(50% + 76px);
 }
 
-.shot-dots {
+/* 찍은 사진이 하나씩 채워지는 줄 — 진행이 눈에 보여야 촬영이 리듬을 탑니다. */
+.shot-tray {
   display: flex;
   gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
 }
 
-.shot-dots span {
-  width: 11px;
-  height: 11px;
-  border-radius: 50%;
-  background: var(--shade);
+.tray-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: clamp(52px, 8vw, 84px);
+  border-radius: 8px;
+  border: 2px dashed var(--edge);
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--sub);
+  opacity: 0.7;
 }
 
-.shot-dots span.done {
-  background: var(--accent);
+.tray-slot.filled {
+  border-style: solid;
+  border-color: var(--accent);
+  opacity: 1;
+  animation: pop-in 0.32s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+.tray-slot img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+@keyframes pop-in {
+  from {
+    transform: scale(0.72);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* 보정 고르기 — 촬영 화면에 두어 내 얼굴에 적용된 걸 보며 고르게 합니다. */
+.filter-bar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 940px;
 }
 
 .status {
@@ -608,24 +751,38 @@ button:disabled {
   color: var(--sub);
 }
 
+/* 어느 컷이 잘 나왔는지 판단하는 화면입니다. auto-fit 으로 두면 가로가 넓을 때
+   여섯 장이 한 줄에 몰려 한 장이 200×120 밖에 안 됐습니다 — 열 수를 묶어 크게 봅니다. */
 .shot-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-  gap: 12px;
-  margin-bottom: 20px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  width: min(100%, 1020px);
+  margin: 0 auto 20px;
+}
+
+@media (max-width: 640px) {
+  .shot-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .shot-card {
   position: relative;
-  padding: 0;
   border-radius: 14px;
-  overflow: hidden;
   border: 3px solid transparent;
   background: var(--mat);
+  overflow: hidden;
 }
 
 .shot-card.picked {
   border-color: var(--accent);
+}
+
+.shot-pick {
+  display: block;
+  width: 100%;
+  padding: 0;
 }
 
 .shot-card img {
@@ -633,6 +790,67 @@ button:disabled {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.zoom-button {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--ink);
+}
+
+.zoom-button svg {
+  width: 21px;
+  height: 21px;
+}
+
+/* 크게 보기 */
+.zoom-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 24px;
+  background: rgba(9, 26, 42, 0.9);
+  animation: fade-in 0.18s ease-out;
+}
+
+.zoom-overlay img {
+  max-width: min(100%, 1000px);
+  max-height: 72vh;
+  border-radius: 12px;
+}
+
+.zoom-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.zoom-actions .ghost-button {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .order-badge {
@@ -669,6 +887,7 @@ button:disabled {
 }
 
 .print-mat {
+  position: relative;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -679,7 +898,83 @@ button:disabled {
   max-width: 100%;
   max-height: 74vh;
   border-radius: 6px;
-  border: 1px solid var(--shade);
+  border: 1px solid var(--edge);
+  /* 완성된 인화물이 살짝 올라오며 나타납니다 — "다 됐다"는 감각. */
+  animation: print-out 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity 0.2s ease;
+}
+
+.composite.busy {
+  opacity: 0.45;
+}
+
+@keyframes print-out {
+  from {
+    transform: translateY(26px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.recomposing {
+  position: absolute;
+  margin: 0;
+  padding: 9px 18px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1.5px solid var(--edge);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--sub);
+}
+
+/* 사진은 그대로 두고 겉모습만 바꾸는 패널 */
+.dress-toggle {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 13px 18px;
+  border-radius: var(--radius);
+  border: 2px dashed var(--edge);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.dress-toggle svg {
+  width: 19px;
+  height: 19px;
+  color: var(--accent-ink);
+}
+
+.dress-toggle .chevron {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--sub);
+}
+
+.dress-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 14px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  animation: fade-in 0.2s ease-out;
+}
+
+.dress-panel h3 {
+  margin: 4px 0 0;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--sub);
+}
+
+.dress-panel .option-note {
+  margin: 0;
 }
 
 .result-actions {

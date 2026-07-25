@@ -1,5 +1,5 @@
 import type { RefObject } from "react";
-import type { CamEdge } from "../types";
+import type { CamEdge, FilterDef } from "../types";
 import { Icon } from "../components/Icon";
 
 type Props = {
@@ -18,6 +18,11 @@ type Props = {
   status: string;
   flash: boolean;
   resolution: string | null;
+  /** 지금까지 찍힌 사진들 — 아래에 하나씩 쌓여 진행이 눈에 보이게 합니다. */
+  shots: string[];
+  filters: FilterDef[];
+  filterKey: string;
+  onFilter: (key: string) => void;
   onShoot: () => void;
   onBack: () => void;
 };
@@ -38,6 +43,10 @@ export function CaptureScreen({
   status,
   flash,
   resolution,
+  shots,
+  filters,
+  filterKey,
+  onFilter,
   onShoot,
   onBack,
 }: Props) {
@@ -66,18 +75,47 @@ export function CaptureScreen({
           )}
           {flash && <div className="flash" />}
           {countdown !== null && (
-            <div className={`countdown${countdown === 1 ? " last" : ""}`}>{countdown}</div>
+            // key 를 숫자로 두면 매 초 다시 그려져 링 애니메이션이 처음부터 돕니다.
+            <div key={countdown} className={`countdown${countdown === 1 ? " last" : ""}`}>
+              <svg className="countdown-ring" viewBox="0 0 100 100" aria-hidden="true">
+                <circle className="ring-track" cx="50" cy="50" r="45" />
+                <circle className="ring-fill" cx="50" cy="50" r="45" />
+              </svg>
+              <span>{countdown}</span>
+            </div>
           )}
           {shooting && <div className="look-here">📷 여기를 봐요!</div>}
         </div>
 
-        <div className="shot-dots" aria-label={`${total}장 중 ${shotIndex}장 촬영`}>
+        {/* 찍은 사진이 하나씩 채워집니다 — 점만 켜지는 것보다 진행이 훨씬 잘 보입니다. */}
+        <div className="shot-tray" aria-label={`${total}장 중 ${shotIndex}장 촬영`}>
           {Array.from({ length: total }, (_, index) => (
-            <span key={index} className={index < shotIndex ? "done" : ""} />
+            <div
+              key={index}
+              className={`tray-slot${shots[index] ? " filled" : ""}`}
+              style={{ aspectRatio: `${ratio}` }}
+            >
+              {shots[index] ? <img src={shots[index]} alt={`${index + 1}번째 사진`} /> : index + 1}
+            </div>
           ))}
         </div>
-        {/* 첫 프레임이 들어오기 전에는 촬영 버튼이 잠겨 있으므로, 왜 못 누르는지 알려줍니다. */}
+
         <p className="status">{!ready && !shooting ? "카메라를 준비하는 중이에요…" : status}</p>
+      </div>
+
+      {/* 보정은 이름만 봐선 알 수 없어, 내 얼굴에 적용된 걸 보며 고르게 합니다. */}
+      <div className="filter-bar">
+        {filters.map((item) => (
+          <button
+            key={item.key}
+            className={`pill${item.key === filterKey ? " selected" : ""}`}
+            aria-pressed={item.key === filterKey}
+            disabled={shooting}
+            onClick={() => onFilter(item.key)}
+          >
+            {item.name}
+          </button>
+        ))}
       </div>
 
       <div className="capture-actions">
