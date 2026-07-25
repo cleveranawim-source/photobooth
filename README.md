@@ -7,6 +7,8 @@ iPad를 세워 두면 그대로 사진 부스가 되는 웹앱입니다. 여러 
 서버가 없는 정적 앱이라 GitHub Pages 같은 정적 호스팅에 그대로 올릴 수 있고,
 **사진은 iPad 브라우저 안에서만 처리되어 어디로도 전송되지 않습니다.**
 
+👉 **배포 주소: https://cleveranawim-source.github.io/photobooth/**
+
 ## 들어 있는 것
 
 - 연속 촬영(기본 6장) → 필요한 수만큼 골라 담기
@@ -42,6 +44,20 @@ npm run dev
 ```bash
 npm run build
 ```
+
+## 배포
+
+빌드한 `dist` 를 `gh-pages` 브랜치로 올립니다.
+
+```bash
+npm run deploy
+```
+
+소스 변경은 `main` 에 따로 커밋·푸시하세요 — `npm run deploy` 는 결과물만 올립니다.
+
+> 푸시할 때마다 자동 배포되게 하려면 GitHub Actions 워크플로를 쓰는 편이 낫지만,
+> 현재 `gh` 토큰에 `workflow` 스코프가 없어 워크플로 파일을 푸시할 수 없습니다.
+> `gh auth refresh -h github.com -s workflow` 로 스코프를 추가하면 전환할 수 있습니다.
 
 ## iPad에서 쓰기
 
