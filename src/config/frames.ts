@@ -126,9 +126,9 @@ export const findFrame = (key: string): Frame =>
  * 반드시 그 갈래의 폰트를 둬야 합니다. AppleMyungjo 는 iPad 기본 탑재 한글 명조라 예비로 둡니다.
  */
 export const FONT_STACKS: Record<Frame["titleFont"], string> = {
-  sans: "'Pretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif",
+  sans: "'Paperlogy', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif",
   serif: "'Gowun Batang', 'AppleMyungjo', Georgia, 'Times New Roman', serif",
   // 한글은 등폭 글꼴이 마땅치 않아, 숫자·영문만 등폭으로 두고 한글은 본문 폰트로 떨어뜨립니다.
-  mono: "ui-monospace, SFMono-Regular, Menlo, 'Pretendard', monospace",
-  hand: "'Gaegu', 'Pretendard', cursive",
+  mono: "ui-monospace, SFMono-Regular, Menlo, 'Paperlogy', monospace",
+  hand: "'Gaegu', 'Paperlogy', cursive",
 };

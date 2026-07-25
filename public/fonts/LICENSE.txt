@@ -1,0 +1,18 @@
+이 폴더의 웹폰트는 모두 SIL Open Font License 1.1 로 배포됩니다.
+전문: https://scripts.sil.org/OFL
+
+─────────────────────────────────────────────────────────────
+Paperlogy  (Paperlogy-400/700/800.subset.*.woff2)
+  Paperlogy font is a trademark of Lee Juim.
+  redesigned by Lee Juim, glyphs from Gmarket Sans & Montserrat
+  Version 1.001
+
+Gowun Batang
+  Copyright (c) 2020 Yanghee Ryu (https://github.com/yangheeryu)
+
+Gaegu
+  Copyright (c) 2011 Woowahan Brothers Corp.
+─────────────────────────────────────────────────────────────
+
+원본 폰트를 unicode-range 서브셋(woff2)으로 나눠 담았습니다.
+글자 모양은 바꾸지 않았고, 쓰이지 않는 글자를 뺀 것뿐입니다.
