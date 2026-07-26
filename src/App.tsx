@@ -19,7 +19,6 @@ import { buildTimelapse, startTimelapseCapture, type Clip } from "./lib/timelaps
 import { useCamera } from "./hooks/useCamera";
 import { useIdleReset, useWakeLock } from "./hooks/useKiosk";
 import { usePrintPreviews } from "./hooks/usePrintPreviews";
-import { FilmFilterDefs } from "./components/FilmFilterDefs";
 import { WelcomeScreen } from "./screens/WelcomeScreen";
 import { CaptureScreen } from "./screens/CaptureScreen";
 import { SelectScreen } from "./screens/SelectScreen";
@@ -342,8 +341,6 @@ export default function App() {
   //  무엇을 고르는 건지도 헷갈립니다. 프레임은 인화물에만 적용됩니다.)
   return (
     <div className="app">
-      {/* 필름 계조를 라이브 미리보기에 입히는 SVG 필터 정의(화면에는 안 보입니다) */}
-      <FilmFilterDefs filters={FILTERS} />
       {phase !== "admin" && (
         <header className="topbar no-print">
           <button className="logo" onClick={reset} disabled={shooting}>
@@ -401,6 +398,7 @@ export default function App() {
           shots={shots}
           filters={FILTERS}
           filterKey={filterKey}
+          film={filter.film}
           onFilter={setFilterKey}
           onShoot={() => void runSequence()}
           onBack={reset}

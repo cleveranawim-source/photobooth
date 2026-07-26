@@ -51,6 +51,8 @@ export function applyFilmGrade(
   width: number,
   height: number,
   grade: FilmGrade,
+  /** 라이브 미리보기에서는 그레인을 건너뜁니다 — 화면 크기에선 안 보이는데 매 프레임 비쌉니다. */
+  skipGrain = false,
 ) {
   const image = context.getImageData(0, 0, width, height);
   const data = image.data;
@@ -80,7 +82,7 @@ export function applyFilmGrade(
 
   // 필름 그레인 — 미리보기 크기에서는 보이지 않는 미세 질감이라 결과물에만 넣습니다.
   // 난수는 고정 시드 LCG 라 같은 사진이면 항상 같은 결과가 나옵니다(다시 꾸미기 때 일관).
-  if (grade.grain) {
+  if (grade.grain && !skipGrain) {
     const amp = grade.grain * 30;
     let seed = 1;
     for (let i = 0; i < data.length; i += 4) {

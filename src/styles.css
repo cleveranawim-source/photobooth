@@ -492,10 +492,15 @@ button:disabled {
   width: 100%;
 }
 
+/* 뷰파인더는 **찍히는 화각과 정확히 같아야** 합니다.
+   aspect-ratio 에 max-height 를 같이 걸면, 높이만 잘리고 폭은 그대로라 비율이 깨집니다
+   (단컷=정사각 레이아웃인데 940×558 와이드로 나오던 문제). 높이 상한을 폭 계산에 넣어
+   폭이 함께 줄어들게 해야 비율이 유지됩니다. --vf-ratio 는 App 이 넣어 줍니다. */
 .viewfinder {
+  --vf-cap: 62vh;
   position: relative;
-  width: min(100%, 940px);
-  max-height: 62vh;
+  width: min(100%, 940px, calc(var(--vf-cap) * var(--vf-ratio, 1.6)));
+  aspect-ratio: var(--vf-ratio, 1.6);
   border-radius: var(--radius);
   overflow: hidden;
   background: var(--mat);
@@ -513,6 +518,17 @@ button:disabled {
 
 .cam.glow {
   mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+/* 필름 계조 미리보기. 비디오 위를 완전히 덮습니다.
+   Safari 가 <video> 에 SVG 필터를 안 걸어줘서, 인화와 같은 픽셀 연산으로 직접 그립니다. */
+.cam-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   pointer-events: none;
 }
 
@@ -1158,7 +1174,7 @@ button:disabled {
   }
 
   .viewfinder {
-    max-height: 46vh;
+    --vf-cap: 46vh;
   }
 
   .composite {
@@ -1169,14 +1185,6 @@ button:disabled {
 /* ── 인쇄 ──────────────────────────────────────────────────── */
 /* 용지 크기(@page size)와 .print-image 의 인치 크기는 레이아웃마다 달라
    App.tsx 가 <style id="print-page-rules"> 로 주입합니다. */
-/* SVG 필터 정의만 담긴 요소 — 자리를 차지하면 안 됩니다(display:none 이면 필터가 무효화). */
-.film-defs {
-  position: absolute;
-  width: 0;
-  height: 0;
-  pointer-events: none;
-}
-
 .print-only {
   display: none;
 }

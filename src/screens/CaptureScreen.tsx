@@ -1,6 +1,7 @@
-import type { RefObject } from "react";
-import type { CamEdge, FilterDef } from "../types";
+import { useRef, type RefObject } from "react";
+import type { CamEdge, FilmGrade, FilterDef } from "../types";
 import { Icon } from "../components/Icon";
+import { useFilmPreview } from "../hooks/useFilmPreview";
 
 type Props = {
   videoRef: RefObject<HTMLVideoElement | null>;
@@ -22,6 +23,8 @@ type Props = {
   shots: string[];
   filters: FilterDef[];
   filterKey: string;
+  /** 지금 고른 필터의 필름 계조. 있으면 미리보기를 캔버스로 직접 그립니다. */
+  film?: FilmGrade;
   onFilter: (key: string) => void;
   onShoot: () => void;
   onBack: () => void;
@@ -46,14 +49,21 @@ export function CaptureScreen({
   shots,
   filters,
   filterKey,
+  film,
   onFilter,
   onShoot,
   onBack,
 }: Props) {
+  const filmCanvasRef = useRef<HTMLCanvasElement>(null);
+  useFilmPreview(videoRef, filmCanvasRef, film, ratio);
+
   return (
     <main className={`capture no-print edge-${camEdge}`}>
       <div className="stage">
-        <div className="viewfinder" style={{ aspectRatio: `${ratio}` }}>
+        <div
+          className="viewfinder"
+          style={{ "--vf-ratio": `${ratio}` } as React.CSSProperties}
+        >
           <video
             ref={videoRef}
             className="cam"
@@ -73,6 +83,9 @@ export function CaptureScreen({
               style={{ filter: glowFilter, opacity: glowStrength * 0.72 }}
             />
           )}
+          {/* 필름 계조 미리보기 — 비디오 위를 덮습니다(픽셀 안에서 이미 좌우 반전돼 있어
+              .cam 처럼 CSS 로 뒤집지 않습니다). */}
+          {film && <canvas ref={filmCanvasRef} className="cam-canvas" aria-hidden="true" />}
           {flash && <div className="flash" />}
           {countdown !== null && (
             // key 를 숫자로 두면 매 초 다시 그려져 링 애니메이션이 처음부터 돕니다.

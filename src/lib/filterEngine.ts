@@ -1,6 +1,6 @@
 import type { FilterDef } from "../types";
 import { makeBlurredCanvas } from "./canvas";
-import { applyFilmGrade, filmFilterId } from "./filmGrade";
+import { applyFilmGrade } from "./filmGrade";
 
 // ── 필터 엔진 ──────────────────────────────────────────────────────
 // 캔버스 context.filter 는 iPadOS 에서 실험 플래그 뒤에 있어 기본 비활성입니다
@@ -198,14 +198,10 @@ const scaleBlur = (css: string, scale: number) =>
 
 /**
  * 라이브 미리보기에 쓸 CSS filter 문자열(메인 레이어).
- * 필름 계조는 CSS 로 표현할 수 없어 SVG 필터를 참조합니다(components/FilmFilterDefs 가 주입).
+ * 필름 계조는 여기서 다루지 않습니다 — CSS 로 표현할 수 없고, SVG 필터는 Safari 가
+ * <video> 에 적용해 주지 않아서, hooks/useFilmPreview 가 캔버스에 직접 그립니다.
  */
-export const previewFilterCss = (filter: FilterDef) => {
-  const base = filter.previewCss ?? filter.css;
-  if (!filter.film) return base;
-  const svg = `url(#${filmFilterId(filter.key)})`;
-  return base === "none" ? svg : `${base} ${svg}`;
-};
+export const previewFilterCss = (filter: FilterDef) => filter.previewCss ?? filter.css;
 
 /** 라이브 미리보기 글로우 레이어에 쓸 CSS filter 문자열 */
 export const glowFilterCss = (filter: FilterDef) =>
