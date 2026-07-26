@@ -126,8 +126,8 @@ export const FRAMES: Frame[] = [
     textPlate: true, // 바탕이 알록달록해서 글자를 흰 라벨판에 올려야 읽힙니다
     // 로고가 주인공이라 이름·문구 대신 이 그림들이 들어갑니다.
     // 주제는 아래(가장 넓은 여백), 행사 태그는 위(두 번째 여백)로 나눠 담습니다.
-    logo: "frames/pj-logo.png",
-    badge: "frames/pj-tag.png",
+    logo: "frames/pj-logo-v2.png",
+    badge: "frames/pj-tag-v2.png",
   },
 ];
 

@@ -755,16 +755,25 @@ const stickerDecor: Painter = {
      * 여백(머리·발치·좌우) 안의 한 점. 사진에 가리지 않는 자리만 고르고,
      * 로고·태그 자리(reserved)에 떨어지면 다른 씨앗으로 다시 뽑습니다.
      */
+    // 스티커의 '중심'만 보면 가장자리에 걸친 조각이 로고를 침범합니다 —
+    // 스티커 크기만큼 부풀려서 판정합니다.
+    const pad = unit * 0.13;
     const blocked = (p: { x: number; y: number }) =>
       reserved.some(
-        (r) => p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h,
+        (r) =>
+          p.x >= r.x - pad &&
+          p.x <= r.x + r.w + pad &&
+          p.y >= r.y - pad &&
+          p.y <= r.y + r.h + pad,
       );
+    // 자리를 못 찾으면 **그리지 않습니다**. 예전엔 마지막에 그냥 놓아 버려서
+    // 로고 뒤로 스티커가 깔려 글자가 잘려 보였습니다.
     const spotInMargin = (seed: number) => {
-      for (let attempt = 0; attempt < 8; attempt += 1) {
+      for (let attempt = 0; attempt < 12; attempt += 1) {
         const p = clamp(pickRegion(seed + attempt * 997));
         if (!blocked(p)) return p;
       }
-      return clamp(pickRegion(seed));
+      return null;
     };
 
     const pickRegion = (seed: number) => {
@@ -809,33 +818,40 @@ const stickerDecor: Painter = {
     // ② 마스킹 테이프 — 여백에
     for (let i = 0; i < 3; i += 1) {
       const p = spotInMargin(i * 31 + 5);
+      if (!p) continue;
       tape(context, p.x, p.y, unit * 0.26, unit * 0.07, (rand(i + 65) - 0.5) * 1.4, i % 2 ? "#ffd84d" : "#7fd4c1");
     }
 
     // ③ 낙서선 + 스티커 — 전부 여백 기준. 사진을 살짝 물어도 겹쳐 붙인 느낌이라 자연스럽습니다.
     for (let i = 0; i < 3; i += 1) {
       const p = spotInMargin(i * 41 + 200);
+      if (!p) continue;
       doodle(context, p.x, p.y, unit * 0.10, i * 9);
     }
     const s = unit * 0.11;
     for (let i = 0; i < 3; i += 1) {
       const p = spotInMargin(i * 53 + 300);
+      if (!p) continue;
       pixelHeart(context, p.x, p.y, s * 0.2, i % 2 ? "#e23b3b" : "#f2549a");
     }
     for (let i = 0; i < 2; i += 1) {
       const p = spotInMargin(i * 59 + 400);
+      if (!p) continue;
       smiley(context, p.x, p.y, s * (0.62 + rand(i + 430) * 0.3));
     }
     for (let i = 0; i < 2; i += 1) {
       const p = spotInMargin(i * 61 + 500);
+      if (!p) continue;
       butterfly(context, p.x, p.y, s * 0.72, i % 2 ? "#9b7fd4" : "#5b9bd5");
     }
     for (let i = 0; i < 2; i += 1) {
       const p = spotInMargin(i * 67 + 600);
+      if (!p) continue;
       starShape(context, p.x, p.y, s * 0.46, "#ffd84d");
     }
     for (let i = 0; i < 2; i += 1) {
       const p = spotInMargin(i * 71 + 700);
+      if (!p) continue;
       musicNote(context, p.x, p.y, s * 0.46);
     }
   },
