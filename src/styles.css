@@ -1169,6 +1169,14 @@ button:disabled {
 /* ── 인쇄 ──────────────────────────────────────────────────── */
 /* 용지 크기(@page size)와 .print-image 의 인치 크기는 레이아웃마다 달라
    App.tsx 가 <style id="print-page-rules"> 로 주입합니다. */
+/* SVG 필터 정의만 담긴 요소 — 자리를 차지하면 안 됩니다(display:none 이면 필터가 무효화). */
+.film-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
 .print-only {
   display: none;
 }

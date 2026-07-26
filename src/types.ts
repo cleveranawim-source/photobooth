@@ -78,6 +78,22 @@ export type Layout = {
   cut: "vertical" | "horizontal" | null;
 };
 
+/**
+ * 필름 계조. 채널마다 제어점(0~1)을 두고 그 사이를 선형 보간한 톤커브입니다.
+ * CSS 필터는 전부 선형이라 **들린 검정**이나 **채널별 곡선**을 만들 수 없어서 따로 둡니다.
+ * 제어점의 뜻은 SVG feComponentTransfer 의 tableValues 와 같습니다 — 그래서 미리보기와
+ * 결과물이 근사가 아니라 정확히 같은 값을 냅니다.
+ */
+export type FilmGrade = {
+  r: number[];
+  g: number[];
+  b: number[];
+  /** 채도 (1 = 그대로). 커브보다 먼저 적용됩니다. */
+  saturation?: number;
+  /** 그레인 세기(0~1). 미리보기엔 안 보이는 미세 질감이라 결과물에만 넣습니다. */
+  grain?: number;
+};
+
 export type FilterDef = {
   key: string;
   name: string;
@@ -87,6 +103,8 @@ export type FilterDef = {
   previewCss?: string;
   /** 뽀샤시 글로우 세기(0~1) — 밝은 부분을 흐리게 덧입혀 은은히 번지게 합니다. */
   bloom?: number;
+  /** 필름 톤커브. 있으면 css 보정 뒤에 이어서 적용됩니다. */
+  film?: FilmGrade;
 };
 
 /** 관리자 모드에서 저장하는 운영 설정. localStorage 에 통째로 보관합니다. */
