@@ -68,27 +68,61 @@ function drawText(
   context.restore();
 }
 
+type Band = { x: number; y: number; w: number; h: number };
+
 /**
- * 사진이 없는 가장 넓은 띠(위·아래·왼쪽·오른쪽)를 찾습니다. 로고 자리를 레이아웃마다
- * 따로 정하지 않아도 되도록, 남는 공간이 가장 큰 쪽에 알아서 넣습니다.
- * (세로 스트립은 발치, 가로 띠는 왼쪽 라벨 자리가 잡힙니다.)
+ * 사진이 없는 빈 띠(위·아래·왼쪽·오른쪽)를 **넓은 순으로** 돌려줍니다.
+ * 로고 자리를 레이아웃마다 따로 정하지 않아도 되도록, 남는 공간이 큰 쪽부터 씁니다
+ * (세로 스트립이면 주제는 발치, 행사 태그는 머리 쪽).
+ *
+ * 조각 가장자리에 닿는 변은 안쪽으로 물립니다 — **인화지 테두리 2~3mm 는 프린터가
+ * 늘 잘라냅니다**(가장자리 없는 인쇄의 오버스프레이). 실제 인화물에서 하단 로고가
+ * 잘려 나온 적이 있어 넣은 여백입니다.
  */
-function widestBand(layout: Layout) {
+function emptyBands(layout: Layout): Band[] {
   const cells = layout.cells;
   const x0 = Math.min(...cells.map((c) => c.x));
   const y0 = Math.min(...cells.map((c) => c.y));
   const x1 = Math.max(...cells.map((c) => c.x + c.w));
   const y1 = Math.max(...cells.map((c) => c.y + c.h));
-  const bands = [
+  const safe = Math.min(layout.paper.w, layout.paper.h) * DPI * 0.04;
+
+  const trim = (b: Band): Band => {
+    const left = b.x <= 0 ? safe : 0;
+    const right = b.x + b.w >= layout.tile.w ? safe : 0;
+    const top = b.y <= 0 ? safe : 0;
+    const bottom = b.y + b.h >= layout.tile.h ? safe : 0;
+    return { x: b.x + left, y: b.y + top, w: b.w - left - right, h: b.h - top - bottom };
+  };
+
+  return [
     { x: 0, y: 0, w: layout.tile.w, h: y0 },
     { x: 0, y: y1, w: layout.tile.w, h: layout.tile.h - y1 },
     { x: 0, y: 0, w: x0, h: layout.tile.h },
     { x: x1, y: 0, w: layout.tile.w - x1, h: layout.tile.h },
-  ];
-  return bands.reduce((best, b) => (b.w * b.h > best.w * best.h ? b : best));
+  ]
+    .map(trim)
+    .filter((b) => b.w > 0 && b.h > 0)
+    .sort((a, b) => b.w * b.h - a.w * a.h);
 }
 
-const inside = (rect: { x: number; y: number; w: number; h: number }, x: number, y: number) =>
+/** 띠 안에 그림을 비율 그대로 최대한 크게 넣습니다. */
+function drawFit(
+  context: CanvasRenderingContext2D,
+  image: HTMLImageElement,
+  band: Band,
+  fill = 0.94,
+) {
+  const scale = Math.min(
+    (band.w * fill) / image.naturalWidth,
+    (band.h * fill) / image.naturalHeight,
+  );
+  const w = image.naturalWidth * scale;
+  const h = image.naturalHeight * scale;
+  context.drawImage(image, band.x + (band.w - w) / 2, band.y + (band.h - h) / 2, w, h);
+}
+
+const inside = (rect: Band, x: number, y: number) =>
   x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h;
 
 export type ComposeInput = {
@@ -117,12 +151,13 @@ export async function composePrint({
   quality = 0.92,
 }: ComposeInput): Promise<string> {
   const stamp = dateStamp();
-  const [loaded, logo] = await Promise.all([
+  // 로고·태그를 못 받아도 인화는 되게 — 그 경우 원래대로 글자를 씁니다.
+  const fetchArt = (path?: string) =>
+    path ? loadImage(`${import.meta.env.BASE_URL}${path}`).catch(() => null) : Promise.resolve(null);
+  const [loaded, logo, badge] = await Promise.all([
     Promise.all(images.slice(0, layout.cells.length).map(loadImage)),
-    // 로고를 못 받아도 인화는 되게 — 그 경우 원래대로 글자를 씁니다.
-    frame.logo
-      ? loadImage(`${import.meta.env.BASE_URL}${frame.logo}`).catch(() => null)
-      : Promise.resolve(null),
+    fetchArt(frame.logo),
+    fetchArt(frame.badge),
     ensurePrintFonts(`${title}${tagline}${tagline.toUpperCase()}${caption}${stamp}#0123456789`),
   ]);
   const canvas = document.createElement("canvas");
@@ -138,8 +173,11 @@ export async function composePrint({
   const titleFont = FONT_STACKS[frame.titleFont];
   const bodyFont = FONT_STACKS.sans;
   const monoFont = FONT_STACKS.mono;
-  // 로고 자리는 장식도 비켜 가야 그림이 또렷하게 읽힙니다.
-  const logoBand = logo ? widestBand(layout) : null;
+  // 넓은 여백부터 주제 → 행사 태그 순으로 씁니다. 그 자리는 장식도 비켜 갑니다.
+  const bands = logo ? emptyBands(layout) : [];
+  const logoBand = bands[0] ?? null;
+  const badgeBand = badge ? (bands[1] ?? null) : null;
+  const reserved = [logoBand, badgeBand].filter((b): b is Band => !!b);
 
   layout.tiles.forEach((tile, tileIndex) => {
     context.save();
@@ -148,7 +186,7 @@ export async function composePrint({
     context.rect(0, 0, layout.tile.w, layout.tile.h);
     context.clip();
 
-    paintTile(context, frame, layout.tile, layout.title, layout.cells, logoBand);
+    paintTile(context, frame, layout.tile, layout.title, layout.cells, reserved);
 
     layout.cells.forEach((cell, index) => {
       const image = loaded[index];
@@ -166,20 +204,9 @@ export async function composePrint({
     });
 
     if (logo && logoBand) {
-      // 로고가 주인공인 프레임 — 이름·영문 문구·아래 문구는 생략하고 그림만 크게 넣습니다.
-      const fit = Math.min(
-        (logoBand.w * 0.9) / logo.naturalWidth,
-        (logoBand.h * 0.86) / logo.naturalHeight,
-      );
-      const lw = logo.naturalWidth * fit;
-      const lh = logo.naturalHeight * fit;
-      context.drawImage(
-        logo,
-        logoBand.x + (logoBand.w - lw) / 2,
-        logoBand.y + (logoBand.h - lh) / 2,
-        lw,
-        lh,
-      );
+      // 로고가 주인공인 프레임 — 이름·영문 문구·아래 문구는 생략하고 그림만 넣습니다.
+      drawFit(context, logo, logoBand);
+      if (badge && badgeBand) drawFit(context, badge, badgeBand);
     } else {
       drawText(context, title, layout.title, { font: titleFont, weight: 800, color: frame.ink, plate: frame.textPlate });
       drawText(context, tagline.toUpperCase(), layout.tagline, {
@@ -192,8 +219,8 @@ export async function composePrint({
       drawText(context, caption, layout.caption, { font: titleFont, weight: 800, color: frame.ink, plate: frame.textPlate });
     }
 
-    // 날짜 도장은 로고 자리와 겹치면 생략합니다 — 로고를 작게 줄이는 것보다 낫습니다.
-    if (!logoBand || !inside(logoBand, layout.stamp.x, layout.stamp.y)) {
+    // 날짜 도장은 로고·태그 자리와 겹치면 생략합니다 — 그림을 줄이는 것보다 낫습니다.
+    if (!reserved.some((band) => inside(band, layout.stamp.x, layout.stamp.y))) {
       context.globalAlpha = 0.7;
       drawText(
         context,

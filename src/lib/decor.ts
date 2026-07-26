@@ -12,8 +12,8 @@ import { roundedRect } from "./canvas";
 
 type Tile = { w: number; h: number };
 
-/** 장식이 비켜 가야 할 자리(로고 등). 없으면 null. */
-export type Reserved = { x: number; y: number; w: number; h: number } | null;
+/** 장식이 비켜 가야 할 자리들(로고·행사 태그 등). 없으면 빈 배열. */
+export type Reserved = { x: number; y: number; w: number; h: number }[];
 
 type Painter = {
   /** cells 는 사진이 덮을 자리 — 장식을 그쪽에 몰아 두면 안 보이므로 여백을 노리는 데 씁니다. */
@@ -753,20 +753,16 @@ const stickerDecor: Painter = {
 
     /**
      * 여백(머리·발치·좌우) 안의 한 점. 사진에 가리지 않는 자리만 고르고,
-     * 로고 자리(reserved)에 떨어지면 다른 씨앗으로 다시 뽑습니다.
+     * 로고·태그 자리(reserved)에 떨어지면 다른 씨앗으로 다시 뽑습니다.
      */
+    const blocked = (p: { x: number; y: number }) =>
+      reserved.some(
+        (r) => p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h,
+      );
     const spotInMargin = (seed: number) => {
       for (let attempt = 0; attempt < 8; attempt += 1) {
         const p = clamp(pickRegion(seed + attempt * 997));
-        if (
-          !reserved ||
-          p.x < reserved.x ||
-          p.x > reserved.x + reserved.w ||
-          p.y < reserved.y ||
-          p.y > reserved.y + reserved.h
-        ) {
-          return p;
-        }
+        if (!blocked(p)) return p;
       }
       return clamp(pickRegion(seed));
     };
@@ -906,7 +902,7 @@ export function paintTile(
   tile: Tile,
   title: TextSlot,
   cells: LayoutCell[],
-  reserved: Reserved = null,
+  reserved: Reserved = [],
 ) {
   context.fillStyle = frame.paper;
   context.fillRect(0, 0, tile.w, tile.h);

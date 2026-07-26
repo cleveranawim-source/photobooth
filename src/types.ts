@@ -51,6 +51,11 @@ export type Frame = {
    * 사진이 없는 가장 넓은 여백을 찾아 그 안에 맞춰 넣으므로 레이아웃마다 자리가 달라집니다.
    */
   logo?: string;
+  /**
+   * 로고와 짝을 이루는 작은 표식(행사 태그 등). 두 번째로 넓은 여백에 들어갑니다 —
+   * 세로 스트립이면 머리 쪽입니다. 로고가 있을 때만 그립니다.
+   */
+  badge?: string;
 };
 
 export type LayoutCell = { x: number; y: number; w: number; h: number };
