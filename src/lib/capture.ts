@@ -105,6 +105,8 @@ export async function captureVideoFrame(
   filter: FilterDef,
   ratio: number,
   targetWidth: number,
+  /** 피부 보정 세기 0~1 */
+  skinSmooth = 0,
 ) {
   let best: HTMLCanvasElement | null = null;
   let bestScore = -1;
@@ -118,6 +120,6 @@ export async function captureVideoFrame(
     }
     if (i < attempts - 1) await nextVideoFrame(video);
   }
-  const canvas = bakePreviewLook(best as HTMLCanvasElement, filter);
+  const canvas = bakePreviewLook(best as HTMLCanvasElement, filter, skinSmooth);
   return canvas.toDataURL("image/jpeg", 0.92);
 }

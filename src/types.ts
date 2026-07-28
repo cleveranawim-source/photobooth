@@ -138,4 +138,6 @@ export type Settings = {
   pin: string;
   /** 촬영 과정 타임랩스 저장 버튼 노출 여부 */
   timelapse: boolean;
+  /** 피부 보정 세기(0~100, 0 이면 끔). 결과물에만 적용되고 미리보기에는 안 걸립니다. */
+  skinSmooth: number;
 };

@@ -234,7 +234,13 @@ export default function App() {
         playShutter();
         await sleep(90);
         if (aborted()) return;
-        const shot = await captureVideoFrame(videoRef.current, filter, ratio, captureWidth);
+        const shot = await captureVideoFrame(
+          videoRef.current,
+          filter,
+          ratio,
+          captureWidth,
+          settings.skinSmooth / 100,
+        );
         frames.push(shot);
         setShots((previous) => [...previous, shot]);
         setShotIndex(index + 1);

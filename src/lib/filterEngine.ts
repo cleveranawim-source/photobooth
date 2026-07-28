@@ -1,6 +1,7 @@
 import type { FilterDef } from "../types";
 import { makeBlurredCanvas } from "./canvas";
 import { applyFilmGrade } from "./filmGrade";
+import { smoothSkin } from "./skinSmooth";
 
 // ── 필터 엔진 ──────────────────────────────────────────────────────
 // 캔버스 context.filter 는 iPadOS 에서 실험 플래그 뒤에 있어 기본 비활성입니다
@@ -207,12 +208,27 @@ export const previewFilterCss = (filter: FilterDef) => filter.previewCss ?? filt
 export const glowFilterCss = (filter: FilterDef) =>
   `${filter.css === "none" ? "" : filter.css} blur(10px) brightness(1.32)`.trim();
 
-export function bakePreviewLook(source: HTMLCanvasElement, filter: FilterDef): HTMLCanvasElement {
+export function bakePreviewLook(
+  source: HTMLCanvasElement,
+  filter: FilterDef,
+  /** 피부 보정 세기 0~1. 미리보기엔 없는 단계라 결과물에서만 더해집니다. */
+  skinSmooth = 0,
+): HTMLCanvasElement {
   const width = source.width;
   const height = source.height;
   const scale = width / PREVIEW_REFERENCE_WIDTH;
   const mainCss = previewFilterCss(filter);
   const bloom = filter.bloom ?? 0;
+
+  // ⓪ 피부 보정 — 메인·글로우 두 레이어가 갈라지기 전에 원본을 손봅니다.
+  // 여기서 해야 하는 이유가 둘입니다:
+  //   · 글로우는 source 에서 따로 뜨므로, 갈라진 뒤에 보정하면 경로마다 결과가 달라집니다
+  //     (네이티브 filter 경로에선 main 이 사본이라 글로우엔 보정이 안 실립니다).
+  //   · 살색 마스크는 색차로 판정하는데, 색 보정을 거친 뒤엔 피부 색조가 밀려 있어
+  //     원본 색에서 판정하는 편이 정확합니다.
+  if (skinSmooth > 0) {
+    smoothSkin(source.getContext("2d", { alpha: false })!, width, height, skinSmooth);
+  }
 
   // ① 메인 레이어
   let main: HTMLCanvasElement;

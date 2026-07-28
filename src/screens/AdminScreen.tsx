@@ -160,7 +160,24 @@ export function AdminScreen({ settings, onSave, onClose }: Props) {
               onChange={(event) => patch({ idleSeconds: Number(event.target.value) })}
             />
           </label>
+          <label>
+            피부 보정 (0~100)
+            <input
+              className="text-field short"
+              type="number"
+              min={0}
+              max={100}
+              step={5}
+              value={draft.skinSmooth}
+              onChange={(event) => patch({ skinSmooth: Number(event.target.value) })}
+            />
+          </label>
         </div>
+        <p className="admin-note">
+          피부 보정은 결과물에만 들어갑니다 — 촬영 화면에서는 보이지 않아요. 볼·이마의 결만
+          정리하고 눈매와 머리카락은 그대로 둡니다. 0 이면 끕니다. 너무 올리면 인화했을 때
+          얼굴이 밋밋해 보이니 40 안팎을 권합니다.
+        </p>
         <label className="admin-check">
           <input
             type="checkbox"

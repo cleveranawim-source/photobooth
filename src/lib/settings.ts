@@ -19,6 +19,8 @@ export const DEFAULT_SETTINGS: Settings = {
   defaultLayout: DEFAULT_LAYOUT,
   pin: "0000",
   timelapse: true,
+  // 중학생 대상 기본값. 더 올리면 얼굴이 매끈해지는 대신 인화물에서 질감이 사라집니다.
+  skinSmooth: 40,
 };
 
 const clampNumber = (value: unknown, min: number, max: number, fallback: number) => {
@@ -65,6 +67,7 @@ export function loadSettings(): Settings {
         : DEFAULT_SETTINGS.defaultLayout,
       pin: typeof saved.pin === "string" && /^\d{4}$/.test(saved.pin) ? saved.pin : DEFAULT_SETTINGS.pin,
       timelapse: typeof saved.timelapse === "boolean" ? saved.timelapse : DEFAULT_SETTINGS.timelapse,
+      skinSmooth: clampNumber(saved.skinSmooth, 0, 100, DEFAULT_SETTINGS.skinSmooth),
     };
   } catch {
     return { ...DEFAULT_SETTINGS };
