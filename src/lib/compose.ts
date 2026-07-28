@@ -106,19 +106,40 @@ function emptyBands(layout: Layout): Band[] {
     .sort((a, b) => b.w * b.h - a.w * a.h);
 }
 
-/** 띠 안에 그림을 비율 그대로 최대한 크게 넣습니다. */
+/**
+ * 띠 안에 그림을 비율 그대로 최대한 크게 넣습니다. **띠와 그림의 방향이 어긋나면 눕힙니다.**
+ *
+ * 가로로 긴 로고를 세로로 긴 띠(가로 4컷 띠 ×2 의 왼쪽 여백)에 그냥 넣으면, 폭에 맞춰
+ * 줄어들면서 띠 높이의 5분의 1만 쓰고 주제가 안 읽힙니다 — 실측 256×94 vs 띠 272×504.
+ * 돌려 넣으면 175×474 로 **넓이가 3.4배**가 되고, 책갈피 모양 인화물의 책등처럼 보입니다.
+ *
+ * 방향이 맞는 띠(세로 4컷의 발치)에서는 돌리면 오히려 작아지므로 그대로 둡니다.
+ */
 function drawFit(
   context: CanvasRenderingContext2D,
   image: HTMLImageElement,
   band: Band,
   fill = 0.94,
 ) {
-  const scale = Math.min(
-    (band.w * fill) / image.naturalWidth,
-    (band.h * fill) / image.naturalHeight,
-  );
-  const w = image.naturalWidth * scale;
-  const h = image.naturalHeight * scale;
+  const iw = image.naturalWidth;
+  const ih = image.naturalHeight;
+  const plain = Math.min((band.w * fill) / iw, (band.h * fill) / ih);
+  const turned = Math.min((band.w * fill) / ih, (band.h * fill) / iw);
+
+  // 고만고만하게 커지는 정도면 돌리지 않습니다 — 읽기 불편해지는 값만 치릅니다.
+  if (turned > plain * 1.15) {
+    context.save();
+    context.translate(band.x + band.w / 2, band.y + band.h / 2);
+    // 위→아래로 읽히는 방향(한국 책등 관행). 이 로고는 [자물쇠 그림][글자] 가로 락업이라
+    // 이 방향이어야 자물쇠가 위에 오고, 반대(−90°)면 자물쇠가 발치에 깔려 어색합니다.
+    context.rotate(Math.PI / 2);
+    context.drawImage(image, (-iw * turned) / 2, (-ih * turned) / 2, iw * turned, ih * turned);
+    context.restore();
+    return;
+  }
+
+  const w = iw * plain;
+  const h = ih * plain;
   context.drawImage(image, band.x + (band.w - w) / 2, band.y + (band.h - h) / 2, w, h);
 }
 
@@ -174,9 +195,14 @@ export async function composePrint({
   const bodyFont = FONT_STACKS.sans;
   const monoFont = FONT_STACKS.mono;
   // 넓은 여백부터 주제 → 행사 태그 순으로 씁니다. 그 자리는 장식도 비켜 갑니다.
-  const bands = logo ? emptyBands(layout) : [];
-  const logoBand = bands[0] ?? null;
-  const badgeBand = badge ? (bands[1] ?? null) : null;
+  // 너무 얇은 띠는 아예 거릅니다 — 가로 4컷 띠 ×2 의 위/아래 여백은 1704×32 라
+  // 태그를 넣어봐야 55×30 짜리 점이 됩니다. 알아볼 수 없게 넣느니 빼는 편이 낫습니다
+  // (날짜 도장을 로고와 겹칠 때 생략하는 것과 같은 판단).
+  const usable = (logo ? emptyBands(layout) : []).filter(
+    (band) => Math.min(band.w, band.h) >= Math.min(layout.tile.w, layout.tile.h) * 0.08,
+  );
+  const logoBand = usable[0] ?? null;
+  const badgeBand = badge ? (usable[1] ?? null) : null;
   const reserved = [logoBand, badgeBand].filter((b): b is Band => !!b);
 
   layout.tiles.forEach((tile, tileIndex) => {
