@@ -4,7 +4,7 @@ import { FILTERS, findFilter } from "./config/filters";
 import { findFrame } from "./config/frames";
 import { cellRatio, findLayout, shotsNeeded } from "./config/layouts";
 import { ensureAudio, playBeep, playFanfare, playShutter } from "./lib/audio";
-import { sleep } from "./lib/canvas";
+import { maxLosslessZoom, sleep } from "./lib/canvas";
 import { captureVideoFrame } from "./lib/capture";
 import { composePrint, makeSampleShots } from "./lib/compose";
 import { glowFilterCss, previewFilterCss } from "./lib/filterEngine";
@@ -78,6 +78,20 @@ export default function App() {
   const totalShots = Math.max(settings.shootCount, needed);
   // 촬영 캔버스를 합성 시 차지할 픽셀 폭에 맞춰 잡으면 1:1 로 들어가 다시 스케일되지 않습니다.
   const captureWidth = Math.round(layout.cells[0].w * 2);
+
+  // 줌 상한은 고정값이 아니라 **지금 이 조합에서 인화 화질이 안 깎이는 한계**로 정합니다.
+  // 레이아웃마다 필요 픽셀이 다르고 기기마다 카메라 해상도가 달라서, 같은 배율이라도
+  // 어떤 조합에선 손실 0이고 어떤 조합에선 늘려 찍기가 됩니다.
+  const maxZoom = useMemo(() => {
+    const [width, height] = (camera.resolution ?? "").split("×").map(Number);
+    return maxLosslessZoom(width, height, ratio, captureWidth);
+  }, [camera.resolution, ratio, captureWidth]);
+
+  // 레이아웃을 바꾸거나 카메라가 늦게 해상도를 알려오면 상한이 내려갈 수 있습니다.
+  // 이미 그보다 크게 당겨 둔 상태라면 조용히 끌어내립니다 — 안 그러면 화면과 인화가 달라집니다.
+  useEffect(() => {
+    setZoom((current) => Math.min(current, maxZoom));
+  }, [maxZoom]);
 
   const previews = usePrintPreviews({
     frames,
@@ -410,6 +424,7 @@ export default function App() {
           filterKey={filterKey}
           film={filter.film}
           zoom={zoom}
+          maxZoom={maxZoom}
           onZoom={setZoom}
           onFilter={setFilterKey}
           onShoot={() => void runSequence()}

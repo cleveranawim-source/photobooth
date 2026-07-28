@@ -504,9 +504,8 @@ button:disabled {
   border-radius: var(--radius);
   overflow: hidden;
   background: var(--mat);
-  /* 핀치를 우리가 직접 처리합니다. 이게 없으면 브라우저가 페이지 전체를 확대해 버려
-     뷰파인더 줌과 싸웁니다(아이패드에서 특히). */
-  touch-action: none;
+  /* touch-action 은 CaptureScreen 이 인라인으로 켭니다 — 줌이 가능할 때만 브라우저 기본
+     핀치를 막아야 합니다(안 막으면 페이지 전체가 확대되어 뷰파인더 줌과 싸웁니다). */
 }
 
 /* 확대 중임을 알리고 되돌릴 길을 줍니다 — 손님이 실수로 확대하고 못 푸는 일이 잦습니다. */

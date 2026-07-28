@@ -20,7 +20,10 @@ export function drawCover(
   context.drawImage(image, sourceX, sourceY, cropWidth, cropHeight, x, y, width, height);
 }
 
-/** 핀치 줌 상한. 카메라 원본을 잘라 확대하는 방식이라 더 키우면 화질이 눈에 띄게 떨어집니다. */
+/**
+ * 핀치 줌의 **조작상** 상한입니다. 화질 상한은 이것과 별개로 maxLosslessZoom 이 정합니다
+ * (보통 이 값보다 훨씬 낮게 나옵니다). 여기 3 은 손가락으로 다루기 편한 범위라는 뜻일 뿐입니다.
+ */
 export const MAX_ZOOM = 3;
 
 /**
@@ -55,6 +58,36 @@ export function centerCrop(
     width: cropWidth,
     height: cropHeight,
   };
+}
+
+/**
+ * **인화 화질을 한 톨도 깎지 않는** 최대 줌.
+ *
+ * grabFrame 은 `min(크롭폭, 인화필요폭)` 으로 내보냅니다. 즉 크롭폭이 인화필요폭보다
+ * 크기만 하면 줌을 넣어도 손실이 0이고, 그 아래로 내려가는 순간부터는 늘려 찍는 것이라
+ * 인화물이 흐려집니다. 그 경계가 곧 상한입니다.
+ *
+ * 고정 상한(3배)을 쓰면 안 되는 이유가 여기 있습니다 — 레이아웃마다 필요 픽셀이 다르고
+ * 카메라가 주는 해상도도 기기마다 달라서, 같은 3배가 어떤 조합에선 손실 0이고 어떤
+ * 조합에선 2.5배 확대가 됩니다. 특히 세로 칸은 크롭 높이가 카메라 높이에 묶여
+ * 폭이 `높이 × 칸비율` 밖에 안 나오므로 여유가 확 줄어듭니다.
+ *
+ * 여유가 없는 조합(단컷 폴라로이드 등)에서는 1 이 나오고, 호출 쪽은 그걸 보고
+ * 핀치를 아예 막습니다 — 손님이 화질을 깎을 방법 자체를 없애는 편이 낫습니다.
+ */
+export function maxLosslessZoom(
+  sourceWidth: number,
+  sourceHeight: number,
+  ratio: number,
+  /** 이 사진이 인화물에서 차지할 픽셀 폭 */
+  captureWidth: number,
+) {
+  if (!sourceWidth || !sourceHeight || !captureWidth) return 1;
+  const base = centerCrop(sourceWidth, sourceHeight, ratio, 1);
+  const limit = base.width / captureWidth;
+  // 0.1 단위로 내림 — 경계에 딱 붙이면 반올림 오차로 1픽셀씩 모자랄 수 있습니다.
+  const floored = Math.floor(limit * 10) / 10;
+  return Math.max(1, Math.min(MAX_ZOOM, floored));
 }
 
 export function roundedRect(

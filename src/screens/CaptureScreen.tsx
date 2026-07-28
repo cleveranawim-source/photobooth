@@ -28,6 +28,8 @@ type Props = {
   film?: FilmGrade;
   /** 핀치 줌 배율(1 = 기본). 촬영과 공유해야 해서 App 이 들고 있습니다. */
   zoom: number;
+  /** 인화 화질이 안 깎이는 줌 상한. 1 이면 여유가 없다는 뜻이라 핀치를 막습니다. */
+  maxZoom: number;
   onZoom: (value: number) => void;
   onFilter: (key: string) => void;
   onShoot: () => void;
@@ -55,6 +57,7 @@ export function CaptureScreen({
   filterKey,
   film,
   zoom,
+  maxZoom,
   onZoom,
   onFilter,
   onShoot,
@@ -74,18 +77,24 @@ export function CaptureScreen({
     return Math.hypot(a.x - b.x, a.y - b.y);
   };
 
+  // 여유가 없는 레이아웃·카메라 조합에서는 핀치 자체를 받지 않습니다.
+  // 당길 수는 있는데 인화가 흐려지는 것보다, 아예 안 당겨지는 편이 정직합니다.
+  const canZoom = maxZoom > 1;
+
   const onPointerDown = (event: React.PointerEvent) => {
+    if (!canZoom) return;
     pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
     if (pointers.current.size === 2) pinchStart.current = { distance: spread(), zoom };
   };
 
   const onPointerMove = (event: React.PointerEvent) => {
-    if (!pointers.current.has(event.pointerId)) return;
+    if (!canZoom || !pointers.current.has(event.pointerId)) return;
     pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
     const start = pinchStart.current;
     if (pointers.current.size !== 2 || !start || start.distance <= 0) return;
     const next = (start.zoom * spread()) / start.distance;
-    onZoom(Math.min(MAX_ZOOM, Math.max(1, Number(next.toFixed(2)))));
+    const ceiling = Math.min(MAX_ZOOM, maxZoom);
+    onZoom(Math.min(ceiling, Math.max(1, Number(next.toFixed(2)))));
   };
 
   const endPointer = (event: React.PointerEvent) => {
@@ -100,7 +109,13 @@ export function CaptureScreen({
         <div
           className="viewfinder"
           style={
-            { "--vf-ratio": `${ratio}`, "--cam-zoom": `${zoom}` } as React.CSSProperties
+            {
+              "--vf-ratio": `${ratio}`,
+              "--cam-zoom": `${zoom}`,
+              // 핀치를 우리가 처리할 때만 브라우저 기본 동작을 막습니다. 줌이 없는데도
+              // 막아 두면 뷰파인더 위에서 페이지 스크롤이 안 됩니다.
+              touchAction: canZoom ? "none" : undefined,
+            } as React.CSSProperties
           }
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}

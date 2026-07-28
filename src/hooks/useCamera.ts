@@ -33,7 +33,10 @@ export function useCamera() {
       if (!live) {
         streamRef.current = await navigator.mediaDevices.getUserMedia({
           audio: false,
-          video: { facingMode: "user", width: { ideal: 1920 }, height: { ideal: 1080 } },
+          // ideal 은 강제가 아니라 희망값입니다 — 못 주면 브라우저가 알아서 낮춰 줍니다.
+          // 크게 부르는 이유: 세로 칸은 크롭 높이가 카메라 높이에 묶여서, 1080 이면
+          // 단컷 폴라로이드·2×2 격자가 줌 없이도 이미 늘려 찍는 상태가 됩니다.
+          video: { facingMode: "user", width: { ideal: 3840 }, height: { ideal: 2160 } },
         });
       }
       const track = streamRef.current?.getVideoTracks()[0];
