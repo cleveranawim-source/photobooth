@@ -31,6 +31,8 @@ export default function App() {
   const [frameKey, setFrameKey] = useState(settings.defaultFrame);
   const [layoutKey, setLayoutKey] = useState(settings.defaultLayout);
   const [filterKey, setFilterKey] = useState("none");
+  // 핀치 줌 — 뷰파인더와 촬영이 같은 값을 써야 해서 여기서 들고 내려보냅니다.
+  const [zoom, setZoom] = useState(1);
   const [caption, setCaption] = useState(settings.caption);
 
   const [shots, setShots] = useState<string[]>([]);
@@ -125,6 +127,7 @@ export default function App() {
     setPicked([]);
     setShotIndex(0);
     setError(null);
+    setZoom(1); // 다음 손님이 앞사람 확대 상태를 그대로 물려받지 않도록
   }, [stopCamera]);
 
   useIdleReset(phase === "result" || phase === "select", settings.idleSeconds, reset);
@@ -240,6 +243,7 @@ export default function App() {
           ratio,
           captureWidth,
           settings.skinSmooth / 100,
+          zoom,
         );
         frames.push(shot);
         setShots((previous) => [...previous, shot]);
@@ -405,6 +409,8 @@ export default function App() {
           filters={FILTERS}
           filterKey={filterKey}
           film={filter.film}
+          zoom={zoom}
+          onZoom={setZoom}
           onFilter={setFilterKey}
           onShoot={() => void runSequence()}
           onBack={reset}

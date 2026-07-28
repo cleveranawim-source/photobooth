@@ -1,4 +1,5 @@
 import type { FilterDef } from "../types";
+import { centerCrop } from "./canvas";
 import { bakePreviewLook, supportsCanvasFilter } from "./filterEngine";
 
 /**
@@ -13,19 +14,19 @@ export function grabFrame(
   video: HTMLVideoElement,
   ratio: number,
   targetWidth: number,
+  zoom = 1,
 ): HTMLCanvasElement {
   const sourceWidth = video.videoWidth;
   const sourceHeight = video.videoHeight;
   if (!sourceWidth || !sourceHeight) throw new Error("카메라 화면이 아직 준비되지 않았습니다.");
 
-  let cropWidth = sourceWidth;
-  let cropHeight = Math.round(sourceWidth / ratio);
-  if (cropHeight > sourceHeight) {
-    cropHeight = sourceHeight;
-    cropWidth = Math.round(sourceHeight * ratio);
-  }
-  const sourceX = (sourceWidth - cropWidth) / 2;
-  const sourceY = (sourceHeight - cropHeight) / 2;
+  // 뷰파인더(useFilmPreview)와 반드시 같은 식이어야 해서 공유 함수를 씁니다.
+  const {
+    x: sourceX,
+    y: sourceY,
+    width: cropWidth,
+    height: cropHeight,
+  } = centerCrop(sourceWidth, sourceHeight, ratio, zoom);
 
   // 카메라가 주는 것보다 크게 잡아봐야 보간일 뿐이라 크롭 폭을 상한으로 둡니다.
   const outputWidth = Math.min(cropWidth, targetWidth);
@@ -107,12 +108,14 @@ export async function captureVideoFrame(
   targetWidth: number,
   /** 피부 보정 세기 0~1 */
   skinSmooth = 0,
+  /** 핀치 줌 배율(1 = 기본) */
+  zoom = 1,
 ) {
   let best: HTMLCanvasElement | null = null;
   let bestScore = -1;
   const attempts = 3;
   for (let i = 0; i < attempts; i += 1) {
-    const candidate = grabFrame(video, ratio, targetWidth);
+    const candidate = grabFrame(video, ratio, targetWidth, zoom);
     const score = sharpnessScore(candidate);
     if (score > bestScore) {
       bestScore = score;

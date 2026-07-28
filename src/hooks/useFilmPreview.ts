@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import type { RefObject } from "react";
 import type { FilmGrade } from "../types";
 import { applyFilmGrade } from "../lib/filmGrade";
+import { centerCrop } from "../lib/canvas";
 
 /**
  * 필름 계조를 입힌 라이브 미리보기를 캔버스에 직접 그립니다.
@@ -22,6 +23,7 @@ export function useFilmPreview(
   canvasRef: RefObject<HTMLCanvasElement | null>,
   film: FilmGrade | undefined,
   ratio: number,
+  zoom = 1,
 ) {
   useEffect(() => {
     if (!film) return;
@@ -45,18 +47,14 @@ export function useFilmPreview(
       const context = canvas.getContext("2d", { alpha: false, willReadFrequently: true });
       if (!context) return;
 
-      // 촬영(lib/capture 의 grabFrame)과 같은 중앙 크롭 + 좌우 반전이어야
-      // 미리보기에서 본 구도가 그대로 찍힙니다.
-      const sourceWidth = video.videoWidth;
-      const sourceHeight = video.videoHeight;
-      let cropWidth = sourceWidth;
-      let cropHeight = Math.round(sourceWidth / ratio);
-      if (cropHeight > sourceHeight) {
-        cropHeight = sourceHeight;
-        cropWidth = Math.round(sourceHeight * ratio);
-      }
-      const sourceX = (sourceWidth - cropWidth) / 2;
-      const sourceY = (sourceHeight - cropHeight) / 2;
+      // 촬영(lib/capture 의 grabFrame)과 **같은 함수로** 크롭을 계산합니다 — 여기와 저기가
+      // 다르면 화면으로 잡은 구도와 인화물이 어긋납니다. 좌우 반전도 같이 맞춥니다.
+      const {
+        x: sourceX,
+        y: sourceY,
+        width: cropWidth,
+        height: cropHeight,
+      } = centerCrop(video.videoWidth, video.videoHeight, ratio, zoom);
 
       context.save();
       context.translate(width, 0);
@@ -69,5 +67,5 @@ export function useFilmPreview(
 
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [film, ratio, videoRef, canvasRef]);
+  }, [film, ratio, zoom, videoRef, canvasRef]);
 }

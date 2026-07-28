@@ -2,6 +2,7 @@ import { useRef, type RefObject } from "react";
 import type { CamEdge, FilmGrade, FilterDef } from "../types";
 import { Icon } from "../components/Icon";
 import { useFilmPreview } from "../hooks/useFilmPreview";
+import { MAX_ZOOM } from "../lib/canvas";
 
 type Props = {
   videoRef: RefObject<HTMLVideoElement | null>;
@@ -25,6 +26,9 @@ type Props = {
   filterKey: string;
   /** 지금 고른 필터의 필름 계조. 있으면 미리보기를 캔버스로 직접 그립니다. */
   film?: FilmGrade;
+  /** 핀치 줌 배율(1 = 기본). 촬영과 공유해야 해서 App 이 들고 있습니다. */
+  zoom: number;
+  onZoom: (value: number) => void;
   onFilter: (key: string) => void;
   onShoot: () => void;
   onBack: () => void;
@@ -50,19 +54,59 @@ export function CaptureScreen({
   filters,
   filterKey,
   film,
+  zoom,
+  onZoom,
   onFilter,
   onShoot,
   onBack,
 }: Props) {
   const filmCanvasRef = useRef<HTMLCanvasElement>(null);
-  useFilmPreview(videoRef, filmCanvasRef, film, ratio);
+  useFilmPreview(videoRef, filmCanvasRef, film, ratio, zoom);
+
+  // ── 핀치 줌 ────────────────────────────────────────────────────────
+  // 포인터 이벤트로 직접 셉니다. Safari 의 gesturechange 는 iOS 전용이라 아이패드에서만 돌고,
+  // 손님이 노트북·안드로이드로 열어볼 수도 있어 표준 이벤트가 안전합니다.
+  const pointers = useRef(new Map<number, { x: number; y: number }>());
+  const pinchStart = useRef<{ distance: number; zoom: number } | null>(null);
+
+  const spread = () => {
+    const [a, b] = [...pointers.current.values()];
+    return Math.hypot(a.x - b.x, a.y - b.y);
+  };
+
+  const onPointerDown = (event: React.PointerEvent) => {
+    pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (pointers.current.size === 2) pinchStart.current = { distance: spread(), zoom };
+  };
+
+  const onPointerMove = (event: React.PointerEvent) => {
+    if (!pointers.current.has(event.pointerId)) return;
+    pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    const start = pinchStart.current;
+    if (pointers.current.size !== 2 || !start || start.distance <= 0) return;
+    const next = (start.zoom * spread()) / start.distance;
+    onZoom(Math.min(MAX_ZOOM, Math.max(1, Number(next.toFixed(2)))));
+  };
+
+  const endPointer = (event: React.PointerEvent) => {
+    pointers.current.delete(event.pointerId);
+    // 한 손가락만 남아도 기준 거리는 버립니다 — 안 그러면 다음 핀치가 튑니다.
+    if (pointers.current.size < 2) pinchStart.current = null;
+  };
 
   return (
     <main className={`capture no-print edge-${camEdge}`}>
       <div className="stage">
         <div
           className="viewfinder"
-          style={{ "--vf-ratio": `${ratio}` } as React.CSSProperties}
+          style={
+            { "--vf-ratio": `${ratio}`, "--cam-zoom": `${zoom}` } as React.CSSProperties
+          }
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={endPointer}
+          onPointerCancel={endPointer}
+          onPointerLeave={endPointer}
         >
           <video
             ref={videoRef}
@@ -98,6 +142,15 @@ export function CaptureScreen({
             </div>
           )}
           {shooting && <div className="look-here">📷 여기를 봐요!</div>}
+          {zoom > 1 && (
+            // 확대 중일 때만 뜹니다. 되돌릴 방법이 없으면 손님이 당황해서 리셋 버튼을 같이 둡니다.
+            <div className="zoom-badge">
+              <span>{zoom.toFixed(1)}×</span>
+              <button type="button" onClick={() => onZoom(1)}>
+                되돌리기
+              </button>
+            </div>
+          )}
         </div>
 
         {/* 찍은 사진이 하나씩 채워집니다 — 점만 켜지는 것보다 진행이 훨씬 잘 보입니다. */}

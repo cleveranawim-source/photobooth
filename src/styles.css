@@ -504,6 +504,38 @@ button:disabled {
   border-radius: var(--radius);
   overflow: hidden;
   background: var(--mat);
+  /* 핀치를 우리가 직접 처리합니다. 이게 없으면 브라우저가 페이지 전체를 확대해 버려
+     뷰파인더 줌과 싸웁니다(아이패드에서 특히). */
+  touch-action: none;
+}
+
+/* 확대 중임을 알리고 되돌릴 길을 줍니다 — 손님이 실수로 확대하고 못 푸는 일이 잦습니다. */
+.zoom-badge {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px 7px 14px;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.55);
+  color: #fff;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  backdrop-filter: blur(6px);
+}
+
+.zoom-badge button {
+  border: 0;
+  border-radius: 999px;
+  padding: 5px 12px;
+  background: rgb(255 255 255 / 0.22);
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
 }
 
 .cam {
@@ -512,8 +544,10 @@ button:disabled {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  /* 전면 카메라는 거울처럼 보여야 자연스럽습니다(캡처 때도 같이 반전). */
-  transform: scaleX(-1);
+  /* 전면 카메라는 거울처럼 보여야 자연스럽습니다(캡처 때도 같이 반전).
+     핀치 줌은 중심 기준 확대 — object-fit:cover 로 이미 중앙 크롭된 화면을 더 키우는 것이라
+     lib/canvas 의 centerCrop(원본에서 1/z 영역을 잘라냄)과 결과가 같습니다. */
+  transform: scaleX(-1) scale(var(--cam-zoom, 1));
 }
 
 .cam.glow {
