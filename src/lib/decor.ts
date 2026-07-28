@@ -881,6 +881,532 @@ const stickerDecor: Painter = {
   },
 };
 
+// ── 계절·행사 6종의 공용 도형 ────────────────────────────────────────
+
+/** 6갈래 눈 결정 — 가지 끝에 잔가지 한 쌍. 호출 쪽에서 strokeStyle·lineWidth 를 정합니다. */
+function snowflake(context: CanvasRenderingContext2D, x: number, y: number, radius: number) {
+  context.save();
+  context.translate(x, y);
+  context.lineCap = "round";
+  for (let i = 0; i < 6; i += 1) {
+    context.rotate(Math.PI / 3);
+    context.beginPath();
+    context.moveTo(0, 0);
+    context.lineTo(0, -radius);
+    context.moveTo(0, -radius * 0.55);
+    context.lineTo(radius * 0.24, -radius * 0.78);
+    context.moveTo(0, -radius * 0.55);
+    context.lineTo(-radius * 0.24, -radius * 0.78);
+    context.stroke();
+  }
+  context.restore();
+}
+
+/** 은행잎 — 아래 잎자루에서 위로 퍼지는 부채꼴, 상단 가운데가 살짝 파입니다. */
+function ginkgo(
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number,
+  angle: number,
+) {
+  context.save();
+  context.translate(x, y);
+  context.rotate(angle);
+  context.beginPath();
+  context.moveTo(0, size * 0.9);
+  context.quadraticCurveTo(-size * 0.5, size * 0.5, -size * 0.8, -size * 0.2);
+  context.quadraticCurveTo(-size * 0.3, -size * 0.75, 0, -size * 0.5);
+  context.quadraticCurveTo(size * 0.3, -size * 0.75, size * 0.8, -size * 0.2);
+  context.quadraticCurveTo(size * 0.5, size * 0.5, 0, size * 0.9);
+  context.closePath();
+  context.fill();
+  context.restore();
+}
+
+/** 채운 별(다이컷 스티커가 아닌 밋밋한 별 — 별밤·불가사리에 씁니다). */
+function flatStar(
+  context: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  radius: number,
+  innerRatio: number,
+  angle = -Math.PI / 2,
+) {
+  context.beginPath();
+  for (let i = 0; i < 10; i += 1) {
+    const r = i % 2 === 0 ? radius : radius * innerRatio;
+    const a = (Math.PI / 5) * i + angle;
+    const px = cx + r * Math.cos(a);
+    const py = cy + r * Math.sin(a);
+    if (i === 0) context.moveTo(px, py);
+    else context.lineTo(px, py);
+  }
+  context.closePath();
+  context.fill();
+}
+
+/** 초승달 — 원에서 어긋난 원을 도려낸 모양. */
+function crescent(context: CanvasRenderingContext2D, x: number, y: number, radius: number) {
+  context.save();
+  context.beginPath();
+  context.arc(x, y, radius, 0, Math.PI * 2);
+  // 오른쪽 위로 어긋난 원을 빼서 낫 모양을 남깁니다.
+  context.arc(x + radius * 0.45, y - radius * 0.18, radius * 0.82, 0, Math.PI * 2, true);
+  context.fill("evenodd");
+  context.restore();
+}
+
+/** 깃발 줄(가랜드) — 살짝 처진 줄에 삼각 깃발이 매달립니다. */
+function bunting(
+  context: CanvasRenderingContext2D,
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  sag: number,
+  colors: string[],
+  count: number,
+) {
+  const at = (t: number) => {
+    const mx = (x0 + x1) / 2;
+    const my = (y0 + y1) / 2 + sag;
+    const u = 1 - t;
+    return {
+      x: u * u * x0 + 2 * u * t * mx + t * t * x1,
+      y: u * u * y0 + 2 * u * t * my + t * t * y1,
+    };
+  };
+  context.save();
+  context.lineWidth = 3;
+  context.beginPath();
+  context.moveTo(x0, y0);
+  context.quadraticCurveTo((x0 + x1) / 2, (y0 + y1) / 2 + sag, x1, y1);
+  context.stroke();
+  const flag = Math.hypot(x1 - x0, y1 - y0) / (count * 2.4);
+  for (let i = 0; i < count; i += 1) {
+    const t = (i + 0.5) / count;
+    const p = at(t);
+    context.fillStyle = colors[i % colors.length];
+    context.beginPath();
+    context.moveTo(p.x - flag * 0.7, p.y);
+    context.lineTo(p.x + flag * 0.7, p.y);
+    context.lineTo(p.x, p.y + flag * 1.25);
+    context.closePath();
+    context.fill();
+  }
+  context.restore();
+}
+
+/** 분필로 그은 듯한 삐뚤빼뚤한 사각 테두리. 두 번 겹쳐 그으면 분필 질감이 삽니다. */
+function chalkRect(
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  jitter: number,
+  seed: number,
+) {
+  const corners: [number, number][] = [
+    [x, y], [x + w, y], [x + w, y + h], [x, y + h],
+  ];
+  context.beginPath();
+  let k = seed;
+  corners.forEach(([cx, cy], index) => {
+    const [nx, ny] = corners[(index + 1) % 4];
+    const steps = 6;
+    for (let s = 0; s <= steps; s += 1) {
+      k += 1;
+      const t = s / steps;
+      const px = cx + (nx - cx) * t + (rand(k) - 0.5) * jitter;
+      const py = cy + (ny - cy) * t + (rand(k + 0.5) - 0.5) * jitter;
+      if (index === 0 && s === 0) context.moveTo(px, py);
+      else context.lineTo(px, py);
+    }
+  });
+  context.closePath();
+  context.stroke();
+}
+
+// ── 오션 웨이브 ──────────────────────────────────────────────────────
+// 해질녘 바다: 코랄 해 + 겹치는 파도 + 물거품. 사진엔 불가사리 하나.
+const ocean: Painter = {
+  tile: (context, frame, tile) => {
+    // 해 — 위쪽에 반투명 코랄 원 두 겹
+    context.save();
+    context.fillStyle = frame.accent;
+    context.globalAlpha = 0.2;
+    context.beginPath();
+    context.arc(tile.w * 0.14, tile.h * 0.08, Math.min(tile.w, tile.h) * 0.09, 0, Math.PI * 2);
+    context.fill();
+    context.globalAlpha = 0.5;
+    context.beginPath();
+    context.arc(tile.w * 0.14, tile.h * 0.08, Math.min(tile.w, tile.h) * 0.055, 0, Math.PI * 2);
+    context.fill();
+    context.restore();
+
+    // 발치의 파도 세 겹 — 위로 갈수록 옅게
+    context.save();
+    context.lineCap = "round";
+    [0.985, 0.955, 0.925].forEach((yRatio, i) => {
+      context.globalAlpha = 0.55 - i * 0.16;
+      context.strokeStyle = i === 1 ? frame.accent : frame.sub;
+      context.lineWidth = 5 - i;
+      wave(context, tile.w * 0.05, tile.h * yRatio, tile.w * 0.9, tile.h * 0.012, 6);
+    });
+    context.restore();
+
+    // 물거품 방울
+    context.save();
+    context.strokeStyle = frame.sub;
+    context.lineWidth = 2;
+    for (let i = 0; i < 10; i += 1) {
+      context.globalAlpha = 0.2 + rand(i + 3) * 0.3;
+      context.beginPath();
+      context.arc(
+        rand(i + 5) * tile.w,
+        rand(i + 17) * tile.h,
+        Math.min(tile.w, tile.h) * (0.008 + rand(i + 29) * 0.02),
+        0,
+        Math.PI * 2,
+      );
+      context.stroke();
+    }
+    context.restore();
+  },
+  cell: (context, frame, cell) => {
+    outlineCell(context, cell, frame.photoRadius, frame.sub, 3, 0.8);
+    // 우하단 불가사리 — 통통한 별(안쪽 반지름을 크게)이라 별밤의 뾰족 별과 구분됩니다.
+    context.save();
+    context.fillStyle = frame.accent;
+    flatStar(context, cell.x + cell.w - 24, cell.y + cell.h - 24, 17, 0.62, -Math.PI / 2 + 0.3);
+    context.globalAlpha = 0.6;
+    context.fillStyle = frame.paper;
+    context.beginPath();
+    context.arc(cell.x + cell.w - 24, cell.y + cell.h - 24, 3.5, 0, Math.PI * 2);
+    context.fill();
+    context.restore();
+  },
+};
+
+// ── 어텀 리프 ────────────────────────────────────────────────────────
+// 바람 곡선을 따라 흐르는 낙엽(은행잎+갸름한 잎). 발치엔 잎이 쌓입니다.
+const autumn: Painter = {
+  tile: (context, frame, tile) => {
+    // 바람 흐름선 두 줄
+    context.save();
+    context.strokeStyle = frame.sub;
+    context.lineWidth = 2.5;
+    context.lineCap = "round";
+    context.globalAlpha = 0.4;
+    context.beginPath();
+    context.moveTo(-tile.w * 0.02, tile.h * 0.16);
+    context.bezierCurveTo(tile.w * 0.3, tile.h * 0.05, tile.w * 0.6, tile.h * 0.22, tile.w * 1.02, tile.h * 0.1);
+    context.stroke();
+    context.globalAlpha = 0.3;
+    context.beginPath();
+    context.moveTo(-tile.w * 0.02, tile.h * 0.88);
+    context.bezierCurveTo(tile.w * 0.35, tile.h * 0.97, tile.w * 0.65, tile.h * 0.82, tile.w * 1.02, tile.h * 0.93);
+    context.stroke();
+    context.restore();
+
+    // 흩날리는 잎 — 은행잎(노랑기)과 갸름한 잎(적갈)을 섞습니다.
+    context.save();
+    const colors = [frame.accent, frame.sub, "#d9922e"];
+    for (let i = 0; i < 13; i += 1) {
+      context.globalAlpha = 0.35 + rand(i + 7) * 0.4;
+      context.fillStyle = colors[i % colors.length];
+      const size = Math.min(tile.w, tile.h) * (0.018 + rand(i + 41) * 0.026);
+      const x = rand(i + 2) * tile.w;
+      const y = rand(i + 13) * tile.h;
+      if (i % 2 === 0) ginkgo(context, x, y, size, rand(i + 23) * Math.PI * 2);
+      else leaf(context, x, y, size, rand(i + 23) * Math.PI);
+    }
+    context.restore();
+  },
+  cell: (context, frame, cell, index) => {
+    outlineCell(context, cell, frame.photoRadius, frame.ink, 2, 0.4);
+    // 사진 아래변에 낙엽이 내려앉음 — 홀짝 컷의 좌우를 바꿔 손맛을 냅니다.
+    const left = index % 2 === 0;
+    const x = left ? cell.x + 24 : cell.x + cell.w - 24;
+    context.save();
+    context.fillStyle = frame.accent;
+    ginkgo(context, x, cell.y + cell.h - 6, 15, left ? -0.5 : 0.5);
+    context.globalAlpha = 0.85;
+    context.fillStyle = "#d9922e";
+    leaf(context, x + (left ? 22 : -22), cell.y + cell.h - 4, 11, left ? 0.7 : -0.7);
+    context.restore();
+  },
+};
+
+// ── 윈터 스노우 ──────────────────────────────────────────────────────
+// 눈 결정 + 내리는 눈 + 발치 눈언덕. 사진 위변엔 눈이 소복이 쌓입니다.
+const snow: Painter = {
+  tile: (context, frame, tile) => {
+    // 발치 눈언덕 — 겹친 반원 두 개
+    context.save();
+    context.fillStyle = "#ffffff";
+    context.globalAlpha = 0.75;
+    context.beginPath();
+    context.arc(tile.w * 0.28, tile.h * 1.05, tile.h * 0.1, Math.PI, 0);
+    context.fill();
+    context.beginPath();
+    context.arc(tile.w * 0.72, tile.h * 1.07, tile.h * 0.13, Math.PI, 0);
+    context.fill();
+    context.restore();
+
+    // 눈 결정 — 큰 것 몇 개는 또렷하게, 나머지는 흐리게
+    context.save();
+    context.strokeStyle = frame.accent;
+    for (let i = 0; i < 7; i += 1) {
+      const big = i < 3;
+      context.globalAlpha = big ? 0.55 : 0.3;
+      context.lineWidth = big ? 2.5 : 1.8;
+      snowflake(
+        context,
+        rand(i + 4) * tile.w,
+        rand(i + 15) * tile.h,
+        Math.min(tile.w, tile.h) * (big ? 0.03 + rand(i + 27) * 0.015 : 0.016 + rand(i + 27) * 0.01),
+      );
+    }
+    context.restore();
+
+    // 내리는 눈(점)
+    context.save();
+    context.fillStyle = "#ffffff";
+    for (let i = 0; i < 18; i += 1) {
+      context.globalAlpha = 0.4 + rand(i + 9) * 0.45;
+      context.beginPath();
+      context.arc(rand(i + 6) * tile.w, rand(i + 19) * tile.h, 2 + rand(i + 33) * 2.6, 0, Math.PI * 2);
+      context.fill();
+    }
+    context.restore();
+  },
+  cell: (context, frame, cell) => {
+    outlineCell(context, cell, frame.photoRadius, frame.sub, 2.5, 0.6);
+    // 사진 위변에 쌓인 눈 — 이 프레임의 개성 포인트. 둥근 모서리를 피해 안쪽만 덮습니다.
+    const inset = frame.photoRadius + 6;
+    const x0 = cell.x + inset;
+    const x1 = cell.x + cell.w - inset;
+    const capDepth = Math.min(cell.h * 0.06, 15);
+    context.save();
+    context.fillStyle = "#ffffff";
+    context.globalAlpha = 0.92;
+    context.beginPath();
+    context.moveTo(x0, cell.y);
+    const bumps = 4;
+    const bw = (x1 - x0) / bumps;
+    for (let i = 0; i < bumps; i += 1) {
+      context.quadraticCurveTo(
+        x0 + bw * (i + 0.5),
+        cell.y + capDepth * (0.9 + rand(i + 3) * 0.5),
+        x0 + bw * (i + 1),
+        cell.y + capDepth * 0.22,
+      );
+    }
+    context.lineTo(x1, cell.y);
+    context.closePath();
+    context.fill();
+    context.restore();
+  },
+};
+
+// ── 스타리 나이트 ────────────────────────────────────────────────────
+// 남색 밤하늘: 초승달 + 별 + 유성. 포레스트(숲의 밤)와 달리 하늘만 가득합니다.
+const starry: Painter = {
+  tile: (context, frame, tile) => {
+    // 초승달
+    context.save();
+    context.fillStyle = frame.accent;
+    context.globalAlpha = 0.9;
+    crescent(context, tile.w * 0.85, tile.h * 0.09, Math.min(tile.w, tile.h) * 0.052);
+    context.restore();
+
+    // 별 — 반짝(4갈래)과 점별을 섞습니다.
+    context.save();
+    for (let i = 0; i < 16; i += 1) {
+      const bright = i % 3 === 0;
+      context.globalAlpha = bright ? 0.75 : 0.4;
+      context.fillStyle = bright ? frame.accent : frame.sub;
+      const x = rand(i + 8) * tile.w;
+      const y = rand(i + 21) * tile.h;
+      if (bright) sparkle(context, x, y, Math.min(tile.w, tile.h) * (0.012 + rand(i + 35) * 0.014));
+      else {
+        context.beginPath();
+        context.arc(x, y, 1.6 + rand(i + 47) * 2, 0, Math.PI * 2);
+        context.fill();
+      }
+    }
+    context.restore();
+
+    // 유성 — 사선 꼬리 끝에 반짝 하나
+    context.save();
+    context.strokeStyle = frame.accent;
+    context.lineCap = "round";
+    context.lineWidth = 2.5;
+    context.globalAlpha = 0.65;
+    const sx = tile.w * 0.18;
+    const sy = tile.h * 0.13;
+    const len = Math.min(tile.w, tile.h) * 0.14;
+    context.beginPath();
+    context.moveTo(sx + len, sy - len * 0.42);
+    context.lineTo(sx, sy);
+    context.stroke();
+    context.globalAlpha = 0.95;
+    context.fillStyle = frame.accent;
+    sparkle(context, sx, sy, Math.min(tile.w, tile.h) * 0.016);
+    context.restore();
+  },
+  cell: (context, frame, cell, index) => {
+    outlineCell(context, cell, frame.photoRadius, frame.accent, 2.5, 0.75);
+    context.save();
+    context.fillStyle = frame.accent;
+    sparkle(context, cell.x + cell.w - 20, cell.y + 20, 12);
+    // 컷마다 좌하단 점별 개수를 달리해 밤하늘이 이어지는 느낌을 줍니다.
+    context.globalAlpha = 0.7;
+    for (let i = 0; i <= index % 3; i += 1) {
+      context.beginPath();
+      context.arc(cell.x + 16 + i * 12, cell.y + cell.h - 14 - (i % 2) * 8, 2.2, 0, Math.PI * 2);
+      context.fill();
+    }
+    context.restore();
+  },
+};
+
+// ── 콘페티 팝 ────────────────────────────────────────────────────────
+// 머리엔 깃발 가랜드, 사방엔 색종이 조각. 졸업식·입학식·생일에 씁니다.
+const CONFETTI_COLORS = ["#ef476f", "#ffd166", "#06d6a0", "#118ab2", "#9b7fd4"];
+
+const confetti: Painter = {
+  tile: (context, frame, tile) => {
+    // 가랜드 두 줄 — 위 모서리에서 교차로 처집니다.
+    context.save();
+    context.strokeStyle = frame.sub;
+    bunting(context, -tile.w * 0.02, tile.h * 0.015, tile.w * 0.55, tile.h * 0.055, tile.h * 0.03, CONFETTI_COLORS, 6);
+    bunting(context, tile.w * 0.45, tile.h * 0.055, tile.w * 1.02, tile.h * 0.015, tile.h * 0.03, CONFETTI_COLORS.slice(2), 6);
+    context.restore();
+
+    // 흩날리는 색종이 — 사각·원·길쭉한 리본 조각을 섞습니다.
+    context.save();
+    for (let i = 0; i < 26; i += 1) {
+      context.globalAlpha = 0.4 + rand(i + 11) * 0.45;
+      context.fillStyle = CONFETTI_COLORS[i % CONFETTI_COLORS.length];
+      const x = rand(i + 3) * tile.w;
+      const y = rand(i + 17) * tile.h;
+      const s = Math.min(tile.w, tile.h) * (0.008 + rand(i + 29) * 0.012);
+      context.save();
+      context.translate(x, y);
+      context.rotate(rand(i + 41) * Math.PI);
+      if (i % 3 === 0) context.fillRect(-s, -s * 0.6, s * 2, s * 1.2);
+      else if (i % 3 === 1) {
+        context.beginPath();
+        context.arc(0, 0, s * 0.8, 0, Math.PI * 2);
+        context.fill();
+      } else context.fillRect(-s * 1.6, -s * 0.32, s * 3.2, s * 0.64);
+      context.restore();
+    }
+    context.restore();
+  },
+  cell: (context, frame, cell, index) => {
+    outlineCell(context, cell, frame.photoRadius, frame.accent, 5, 0.9);
+    // 위 모서리에 색종이 서너 조각 — 컷마다 좌우를 바꿉니다.
+    const left = index % 2 === 0;
+    const cx = left ? cell.x + 16 : cell.x + cell.w - 16;
+    context.save();
+    for (let i = 0; i < 4; i += 1) {
+      context.fillStyle = CONFETTI_COLORS[(i + index) % CONFETTI_COLORS.length];
+      context.save();
+      context.translate(cx + (left ? 1 : -1) * i * 11, cell.y + 12 + (i % 2) * 12);
+      context.rotate(rand(i + index * 7 + 3) * Math.PI);
+      const s = 5.5;
+      if (i % 2 === 0) context.fillRect(-s, -s * 0.6, s * 2, s * 1.2);
+      else {
+        context.beginPath();
+        context.arc(0, 0, s * 0.75, 0, Math.PI * 2);
+        context.fill();
+      }
+      context.restore();
+    }
+    context.restore();
+  },
+};
+
+// ── 칠판 낙서 ────────────────────────────────────────────────────────
+// 나무 테두리를 두른 초록 칠판에 분필 낙서. 사진도 분필로 그린 칸 안에 붙입니다.
+const chalk: Painter = {
+  tile: (context, frame, tile, title) => {
+    // 나무 테두리 — 바깥 진한 갈색 + 안쪽 하이라이트
+    const border = Math.round(Math.min(tile.w, tile.h) * 0.028);
+    context.save();
+    context.strokeStyle = "#8a5a33";
+    context.lineWidth = border;
+    context.strokeRect(border / 2, border / 2, tile.w - border, tile.h - border);
+    context.strokeStyle = "#b07c4a";
+    context.lineWidth = 3;
+    context.strokeRect(border + 1.5, border + 1.5, tile.w - border * 2 - 3, tile.h - border * 2 - 3);
+    context.restore();
+
+    // 분필 낙서 — 글자·기호를 낮은 알파로 흩뿌립니다. 제목 근처는 비웁니다.
+    context.save();
+    context.font = `400 30px ${FONT_STACKS.hand}`;
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    const scribbles = ["ABC", "1+1=2", "★", "♬", "?!", "가나다"];
+    for (let i = 0; i < scribbles.length; i += 1) {
+      const x = rand(i + 5) * (tile.w * 0.84) + tile.w * 0.08;
+      const y = rand(i + 16) * (tile.h * 0.84) + tile.h * 0.08;
+      if (Math.abs(x - title.x) < (title.maxWidth ?? 260) * 0.7 && Math.abs(y - title.y) < 70) continue;
+      context.save();
+      context.translate(x, y);
+      context.rotate((rand(i + 31) - 0.5) * 0.5);
+      context.globalAlpha = 0.3 + rand(i + 43) * 0.2;
+      context.fillStyle = i % 3 === 0 ? frame.accent : frame.ink;
+      context.fillText(scribbles[i], 0, 0);
+      context.restore();
+    }
+    // 분필 가루 점점이
+    context.fillStyle = frame.ink;
+    for (let i = 0; i < 12; i += 1) {
+      context.globalAlpha = 0.1 + rand(i + 53) * 0.15;
+      context.beginPath();
+      context.arc(rand(i + 61) * tile.w, rand(i + 71) * tile.h, 1.5 + rand(i + 83) * 2, 0, Math.PI * 2);
+      context.fill();
+    }
+    context.restore();
+  },
+  cell: (context, frame, cell, index) => {
+    // 분필로 두 번 그은 칸 — 흰 선 위에 노랑 분필을 살짝 어긋나게 겹칩니다.
+    context.save();
+    context.lineCap = "round";
+    context.lineJoin = "round";
+    context.strokeStyle = frame.ink;
+    context.lineWidth = 3;
+    context.globalAlpha = 0.85;
+    chalkRect(context, cell.x - 3, cell.y - 3, cell.w + 6, cell.h + 6, 5, index * 13 + 1);
+    context.strokeStyle = frame.accent;
+    context.lineWidth = 2;
+    context.globalAlpha = 0.5;
+    chalkRect(context, cell.x - 6, cell.y - 6, cell.w + 12, cell.h + 12, 6, index * 29 + 7);
+    // 우하단 분필 별
+    context.globalAlpha = 0.8;
+    context.strokeStyle = frame.accent;
+    context.lineWidth = 2.5;
+    const sx = cell.x + cell.w - 20;
+    const sy = cell.y + cell.h - 20;
+    context.beginPath();
+    for (let i = 0; i < 10; i += 1) {
+      const r = i % 2 === 0 ? 12 : 5;
+      const a = (Math.PI / 5) * i - Math.PI / 2;
+      if (i === 0) context.moveTo(sx + r * Math.cos(a), sy + r * Math.sin(a));
+      else context.lineTo(sx + r * Math.cos(a), sy + r * Math.sin(a));
+    }
+    context.closePath();
+    context.stroke();
+    context.restore();
+  },
+};
+
 // ── 기본(장식 없는 프레임용) ─────────────────────────────────────────
 const plain: Painter = {
   tile: (context, frame, tile) => {
@@ -909,6 +1435,12 @@ const PAINTERS: Record<Frame["decor"], Painter> = {
   forest,
   kraft,
   sticker: stickerDecor,
+  ocean,
+  autumn,
+  snow,
+  starry,
+  confetti,
+  chalk,
 };
 
 /** 조각 바탕색을 칠하고 프레임 장식을 얹습니다(사진 아래). */

@@ -17,7 +17,13 @@ export type Decor =
   | "blossom"
   | "forest"
   | "kraft"
-  | "sticker";
+  | "sticker"
+  | "ocean"
+  | "autumn"
+  | "snow"
+  | "starry"
+  | "confetti"
+  | "chalk";
 
 export type FontKey = "sans" | "serif" | "mono" | "hand";
 

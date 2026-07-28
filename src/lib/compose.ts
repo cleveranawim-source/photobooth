@@ -179,7 +179,11 @@ export async function composePrint({
     Promise.all(images.slice(0, layout.cells.length).map(loadImage)),
     fetchArt(frame.logo),
     fetchArt(frame.badge),
-    ensurePrintFonts(`${title}${tagline}${tagline.toUpperCase()}${caption}${stamp}#0123456789`),
+    // 칠판 낙서 프레임의 분필 글자까지 미리 받습니다 — 서브셋 폰트는 "쓸 글자"를 넘겨야
+    // 그 조각을 받고, 안 받은 글자는 조용히 기본 폰트로 떨어집니다.
+    ensurePrintFonts(
+      `${title}${tagline}${tagline.toUpperCase()}${caption}${stamp}#0123456789ABC+=★♬?!가나다`,
+    ),
   ]);
   const canvas = document.createElement("canvas");
   canvas.width = Math.round(layout.paper.w * DPI * scale);
