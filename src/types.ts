@@ -133,7 +133,7 @@ export type Settings = {
   camEdge: CamEdge;
   /** 촬영 카운트다운 초 */
   countdown: number;
-  /** 완성·선택 화면 방치 시 자동 초기화까지 걸리는 초 */
+  /** 완성·선택·촬영 대기 화면 방치 시 자동 초기화까지 걸리는 초 (촬영 시퀀스 중엔 제외) */
   idleSeconds: number;
   /** 손님에게 보여줄 프레임 목록(비우면 전부) */
   enabledFrames: string[];

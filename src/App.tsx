@@ -123,11 +123,45 @@ export default function App() {
 
   // 촬영 화면에 들어올 때와 필터가 바뀔 때(글로우 <video> 가 새로 생길 때)만 스트림을 붙입니다.
   // camera 객체 전체를 의존성에 넣으면 렌더마다 새 객체라 매 렌더 재부착되어 재생이 끊깁니다.
+  // cameraEpoch 는 자동 복구가 새 스트림을 얻었을 때 재부착을 트리거하는 손잡이입니다.
+  const [cameraEpoch, setCameraEpoch] = useState(0);
   const attachCamera = camera.attach;
   useEffect(() => {
     if (phase !== "camera") return;
     return attachCamera([videoRef.current, glowVideoRef.current]);
-  }, [phase, filterKey, attachCamera]);
+  }, [phase, filterKey, cameraEpoch, attachCamera]);
+
+  // ── 카메라 자동 복구 ─────────────────────────────────────────────
+  // 제어센터를 내리거나 홈으로 나갔다 오거나 다른 앱이 카메라를 가져가면 iPadOS 가
+  // 트랙을 조용히 끝냅니다. 화면은 마지막 프레임에 멈춘 채 오류도 없어서, 행사장에서는
+  // "멈췄어요" 가 되어 새로고침 말고 답이 없던 자리입니다. 돌아왔을 때(visibilitychange)와
+  // 4초 간격 순찰로 트랙 생존을 확인하고, 죽어 있으면 조용히 새로 얻어 다시 붙입니다.
+  const startCameraStream = camera.start;
+  const isCameraLive = camera.isLive;
+  useEffect(() => {
+    if (phase !== "camera" || shooting) return;
+    let cancelled = false;
+    let reviving = false;
+    const revive = async () => {
+      // 백그라운드에서는 카메라를 잡지 않습니다 — 보이지도 않는데 표시등만 켜집니다.
+      if (cancelled || reviving || document.visibilityState !== "visible") return;
+      if (isCameraLive()) return;
+      reviving = true;
+      try {
+        if ((await startCameraStream()) && !cancelled) setCameraEpoch((epoch) => epoch + 1);
+      } finally {
+        reviving = false;
+      }
+    };
+    const onVisibility = () => void revive();
+    document.addEventListener("visibilitychange", onVisibility);
+    const patrol = window.setInterval(() => void revive(), 4000);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.clearInterval(patrol);
+    };
+  }, [phase, shooting, startCameraStream, isCameraLive]);
 
   const stopCamera = camera.stop;
   const reset = useCallback(() => {
@@ -144,7 +178,13 @@ export default function App() {
     setZoom(1); // 다음 손님이 앞사람 확대 상태를 그대로 물려받지 않도록
   }, [stopCamera]);
 
-  useIdleReset(phase === "result" || phase === "select", settings.idleSeconds, reset);
+  // 촬영 대기 화면도 초기화 대상입니다 — 손님이 여기까지 왔다가 그냥 가면 카메라가
+  // 켜진 채(표시등 점등) 줌·필터가 다음 손님에게 남습니다. 촬영 시퀀스 중에는 걸지 않습니다.
+  useIdleReset(
+    phase === "result" || phase === "select" || (phase === "camera" && !shooting),
+    settings.idleSeconds,
+    reset,
+  );
 
   const startCamera = async () => {
     setError(null);

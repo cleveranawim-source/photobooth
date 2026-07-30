@@ -18,6 +18,16 @@ export function useCamera() {
     setResolution(null);
   }, []);
 
+  /**
+   * 스트림이 아직 살아 있는지. iPadOS 는 제어센터를 내리거나 앱을 전환하거나 다른 앱이
+   * 카메라를 가져가면 트랙을 조용히 끝내 버립니다 — 그때 화면은 마지막 프레임에서 멈춘 채
+   * 오류도 없어서, 이 판별 없이는 새로고침 말고 복구할 길이 없습니다.
+   */
+  const isLive = useCallback(
+    () => !!streamRef.current?.getVideoTracks().some((track) => track.readyState === "live"),
+    [],
+  );
+
   useEffect(() => () => stop(), [stop]);
 
   const start = useCallback(async () => {
@@ -85,5 +95,5 @@ export function useCamera() {
     };
   }, []);
 
-  return { start, stop, attach, ready, setReady, resolution, error, setError };
+  return { start, stop, attach, isLive, ready, setReady, resolution, error, setError };
 }

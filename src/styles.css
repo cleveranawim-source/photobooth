@@ -516,8 +516,8 @@ button:disabled {
   transform: translateX(-50%);
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 7px 8px 7px 14px;
+  gap: 12px;
+  padding: 5px 5px 5px 16px;
   border-radius: 999px;
   background: rgb(0 0 0 / 0.55);
   color: #fff;
@@ -529,11 +529,13 @@ button:disabled {
 .zoom-badge button {
   border: 0;
   border-radius: 999px;
-  padding: 5px 12px;
+  /* 이 앱의 터치 타깃 기준(44px)을 지킵니다 — 확대를 풀려는 손님이 헛누르지 않게. */
+  min-height: 44px;
+  padding: 0 18px;
   background: rgb(255 255 255 / 0.22);
   color: #fff;
   font: inherit;
-  font-size: 14px;
+  font-size: 15px;
   cursor: pointer;
 }
 
