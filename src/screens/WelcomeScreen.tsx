@@ -1,8 +1,8 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import type { Frame, Layout } from "../types";
 import { Icon } from "../components/Icon";
-import { PrintPreview } from "../components/Previews";
-import { framePreviewKey, layoutPreviewKey } from "../hooks/usePrintPreviews";
+import { LayoutShape, PrintPreview } from "../components/Previews";
+import { framePreviewKey } from "../hooks/usePrintPreviews";
 
 type Props = {
   title: string;
@@ -17,6 +17,8 @@ type Props = {
   needed: number;
   /** 실제 합성기로 만든 작은 인화물 미리보기 (usePrintPreviews) */
   previews: Record<string, string>;
+  /** 카메라를 못 켠 이유 — 시작 버튼 바로 옆에 띄웁니다. */
+  error: string | null;
   onFrame: (key: string) => void;
   onLayout: (key: string) => void;
   onCaption: (value: string) => void;
@@ -24,6 +26,9 @@ type Props = {
   onSample: () => void;
   onAdmin: () => void;
 };
+
+/** 처음에 보여줄 프레임 수. 이보다 많으면 "더 보기" 카드로 접습니다(청킹). */
+const COLLAPSED = 6;
 
 export function WelcomeScreen({
   title,
@@ -37,6 +42,7 @@ export function WelcomeScreen({
   shootCount,
   needed,
   previews,
+  error,
   onFrame,
   onLayout,
   onCaption,
@@ -53,6 +59,14 @@ export function WelcomeScreen({
   const holdEnd = () => window.clearTimeout(pressTimer.current);
 
   const activeLayout = layouts.find((layout) => layout.key === layoutKey) ?? layouts[0];
+
+  // 행사 로고가 든 프레임이 맨 앞 — 오늘 행사용으로 켜 둔 것이 손님 눈에 먼저 들어오게.
+  const ordered = [...frames.filter((item) => item.logo), ...frames.filter((item) => !item.logo)];
+  const [showAll, setShowAll] = useState(false);
+  const selectedIndex = ordered.findIndex((item) => item.key === frameKey);
+  const collapsible = ordered.length > COLLAPSED + 1;
+  const expanded = showAll || !collapsible || selectedIndex >= COLLAPSED;
+  const visibleFrames = expanded ? ordered : ordered.slice(0, COLLAPSED);
 
   return (
     <main className="welcome no-print">
@@ -80,18 +94,16 @@ export function WelcomeScreen({
 
         <p className="welcome-lead">
           {shootCount === needed
-            ? `${shootCount}장을 찍어 인화합니다.`
-            : `${shootCount}장을 찍고 그중 ${needed}장을 골라 인화합니다.`}{" "}
-          사진은 이 기기 안에서만 처리되고 어디로도 전송되지 않아요.
+            ? `${shootCount}장을 찍어 인화해요.`
+            : `${shootCount}장을 찍고 그중 ${needed}장을 골라 인화해요.`}{" "}
+          사진은 이 iPad 안에서만 처리돼요.
         </p>
       </div>
 
-      {/* 오른쪽 — 고른 다음 맨 아래 버튼으로 시작합니다(고르기 → 시작 순서). */}
+      {/* 오른쪽 — 고르기. 가로에서는 시작 버튼이 왼쪽 열 아래에 있어 목록을 덮지 않습니다. */}
       <div className="welcome-options">
         <section className="option-group">
-          <h2>
-            <Icon name="grid" /> 어떤 모양으로 찍을까요?
-          </h2>
+          <h2>어떤 모양으로 찍을까요?</h2>
           <div className="layout-list">
             {layouts.map((layout) => (
               <button
@@ -100,13 +112,9 @@ export function WelcomeScreen({
                 aria-pressed={layout.key === layoutKey}
                 onClick={() => onLayout(layout.key)}
               >
-                <span className="thumb-slot">
-                  <PrintPreview
-                    layout={layout}
-                    frame={frame}
-                    src={previews[layoutPreviewKey(layout.key)]}
-                    alt={`${layout.name} 미리보기`}
-                  />
+                {layout.key === layoutKey && <span className="pick-mark" aria-hidden="true">✓</span>}
+                <span className="shape-slot">
+                  <LayoutShape layout={layout} />
                 </span>
                 <strong>{layout.name}</strong>
                 <small>{layout.hint}</small>
@@ -117,17 +125,18 @@ export function WelcomeScreen({
 
         <section className="option-group">
           <h2>
-            <Icon name="sparkle" /> 어떤 프레임에 담을까요?
+            어떤 프레임에 담을까요? <small>옆으로 넘겨서 더 보기</small>
           </h2>
-          <p className="option-note">인쇄되는 사진의 디자인이에요. 앱 화면 색과는 상관없습니다.</p>
-          <div className="frame-list">
-            {frames.map((item) => (
+          <div className="frame-row">
+            {visibleFrames.map((item) => (
               <button
                 key={item.key}
-                className={`frame-card${item.key === frameKey ? " selected" : ""}`}
+                className={`frame-card${item.key === frameKey ? " selected" : ""}${item.logo ? " event" : ""}`}
                 aria-pressed={item.key === frameKey}
                 onClick={() => onFrame(item.key)}
               >
+                {item.key === frameKey && <span className="pick-mark" aria-hidden="true">✓</span>}
+                {item.logo && <span className="event-badge">행사</span>}
                 <span className="thumb-slot">
                   <PrintPreview
                     layout={activeLayout}
@@ -140,31 +149,44 @@ export function WelcomeScreen({
                 <small>{item.hint}</small>
               </button>
             ))}
+            {!expanded && (
+              <button className="frame-card more-card" onClick={() => setShowAll(true)}>
+                <b>+{ordered.length - COLLAPSED}</b>
+                프레임 더 보기
+              </button>
+            )}
           </div>
         </section>
 
         <section className="option-group">
-          <h2>사진 아래 문구</h2>
+          <h2>
+            사진 아래 문구 <small>나중에 바꿔도 돼요</small>
+          </h2>
           <input
             className="text-field"
             value={caption}
             maxLength={20}
             onChange={(event) => onCaption(event.target.value)}
             placeholder="오늘, 참 좋다"
+            aria-label="사진 아래 문구"
           />
-          <p className="option-note">보정 효과는 촬영 화면에서 얼굴을 보며 고를 수 있어요.</p>
         </section>
+      </div>
 
-        {/* 다 고른 뒤 누르는 자리. 세로 화면에서 스크롤이 길어져도 바닥에 붙어 따라옵니다. */}
-        <div className="start-bar">
-          <button className="primary-button" onClick={onStart}>
-            <Icon name="camera" />
-            촬영 시작
-          </button>
-          <button className="text-link" onClick={onSample}>
-            카메라 없이 샘플로 둘러보기
-          </button>
-        </div>
+      {/* 다 고른 뒤 누르는 자리. 가로에서는 왼쪽 열 아래, 세로에서는 바닥에 붙어 따라옵니다. */}
+      <div className="start-block">
+        {error && (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        )}
+        <button className="primary-button" onClick={onStart}>
+          <Icon name="camera" />
+          촬영 시작
+        </button>
+        <button className="text-link" onClick={onSample}>
+          카메라 없이 샘플로 둘러보기
+        </button>
       </div>
     </main>
   );

@@ -25,6 +25,8 @@ export function AdminScreen({ settings, onSave, onClose }: Props) {
   const [pinError, setPinError] = useState(false);
   const [draft, setDraft] = useState<Settings>(settings);
   const [saved, setSaved] = useState(false);
+  // "기본값으로 되돌리기"는 저장 버튼 바로 옆이라 한 번 더 묻습니다.
+  const [confirmReset, setConfirmReset] = useState(false);
 
   // PIN 화면을 열어 둔 채 자리를 뜨면 키오스크가 거기서 멈춥니다 — 손님이 제목을 길게 눌러
   // 우연히 들어올 수도 있어서, 방치되면 환영 화면으로 돌려보냅니다. 잠금을 푼 뒤에는
@@ -83,9 +85,14 @@ export function AdminScreen({ settings, onSave, onClose }: Props) {
 
   return (
     <main className="admin no-print">
-      <header className="screen-head">
-        <h2>관리자 모드</h2>
-        <p>바꾼 값은 이 기기에만 저장됩니다.</p>
+      <header className="screen-head admin-head">
+        <div>
+          <h2>관리자 모드</h2>
+          <p>바꾼 값은 이 기기에만 저장됩니다.</p>
+        </div>
+        <button className="ghost-button" onClick={onClose}>
+          닫기
+        </button>
       </header>
 
       <section className="admin-group">
@@ -127,6 +134,7 @@ export function AdminScreen({ settings, onSave, onClose }: Props) {
             <input
               className="text-field short"
               type="number"
+              inputMode="numeric"
               min={1}
               max={10}
               value={draft.copies}
@@ -138,6 +146,7 @@ export function AdminScreen({ settings, onSave, onClose }: Props) {
             <input
               className="text-field short"
               type="number"
+              inputMode="numeric"
               min={minShots}
               max={8}
               value={draft.shootCount}
@@ -149,6 +158,7 @@ export function AdminScreen({ settings, onSave, onClose }: Props) {
             <input
               className="text-field short"
               type="number"
+              inputMode="numeric"
               min={3}
               max={10}
               value={draft.countdown}
@@ -160,6 +170,7 @@ export function AdminScreen({ settings, onSave, onClose }: Props) {
             <input
               className="text-field short"
               type="number"
+              inputMode="numeric"
               min={20}
               max={600}
               value={draft.idleSeconds}
@@ -171,6 +182,7 @@ export function AdminScreen({ settings, onSave, onClose }: Props) {
             <input
               className="text-field short"
               type="number"
+              inputMode="numeric"
               min={0}
               max={100}
               step={5}
@@ -245,6 +257,7 @@ export function AdminScreen({ settings, onSave, onClose }: Props) {
 
       <section className="admin-group">
         <h3>손님에게 보여줄 프레임</h3>
+        <p className="admin-note">아무것도 고르지 않으면 전부 보여줍니다. 행사 로고 프레임은 손님 화면 맨 앞에 옵니다.</p>
         <div className="chip-list">
           {FRAMES.map((frame) => (
             <button
@@ -288,15 +301,28 @@ export function AdminScreen({ settings, onSave, onClose }: Props) {
       </section>
 
       <div className="admin-actions">
-        <button
-          className="ghost-button"
-          onClick={() => {
-            setDraft(DEFAULT_SETTINGS);
-            setSaved(false);
-          }}
-        >
-          기본값으로 되돌리기
-        </button>
+        {confirmReset ? (
+          <span className="confirm-row" role="group" aria-label="기본값으로 되돌리기 확인">
+            <span>입력한 값을 모두 기본값으로 바꿀까요?</span>
+            <button
+              className="ghost-button danger"
+              onClick={() => {
+                setDraft(DEFAULT_SETTINGS);
+                setSaved(false);
+                setConfirmReset(false);
+              }}
+            >
+              되돌리기
+            </button>
+            <button className="ghost-button" onClick={() => setConfirmReset(false)}>
+              취소
+            </button>
+          </span>
+        ) : (
+          <button className="ghost-button" onClick={() => setConfirmReset(true)}>
+            기본값으로 되돌리기
+          </button>
+        )}
         <button className="ghost-button" onClick={onClose}>
           닫기
         </button>

@@ -2,6 +2,7 @@ import { useRef, type RefObject } from "react";
 import type { CamEdge, FilmGrade, FilterDef } from "../types";
 import { Icon } from "../components/Icon";
 import { useFilmPreview } from "../hooks/useFilmPreview";
+import { useFilterSwatches } from "../hooks/useFilterSwatches";
 import { MAX_ZOOM } from "../lib/canvas";
 
 type Props = {
@@ -19,7 +20,6 @@ type Props = {
   ready: boolean;
   status: string;
   flash: boolean;
-  resolution: string | null;
   /** 지금까지 찍힌 사진들 — 아래에 하나씩 쌓여 진행이 눈에 보이게 합니다. */
   shots: string[];
   filters: FilterDef[];
@@ -33,7 +33,6 @@ type Props = {
   onZoom: (value: number) => void;
   onFilter: (key: string) => void;
   onShoot: () => void;
-  onBack: () => void;
 };
 
 export function CaptureScreen({
@@ -51,7 +50,6 @@ export function CaptureScreen({
   ready,
   status,
   flash,
-  resolution,
   shots,
   filters,
   filterKey,
@@ -61,10 +59,10 @@ export function CaptureScreen({
   onZoom,
   onFilter,
   onShoot,
-  onBack,
 }: Props) {
   const filmCanvasRef = useRef<HTMLCanvasElement>(null);
   useFilmPreview(videoRef, filmCanvasRef, film, ratio, zoom);
+  const swatches = useFilterSwatches(filters);
 
   // ── 핀치 줌 ────────────────────────────────────────────────────────
   // 포인터 이벤트로 직접 셉니다. Safari 의 gesturechange 는 iOS 전용이라 아이패드에서만 돌고,
@@ -105,6 +103,8 @@ export function CaptureScreen({
 
   return (
     <main className={`capture no-print edge-${camEdge}`}>
+      {/* 뷰파인더는 남는 높이를 전부 씁니다. 아래 줄(트레이·필터·촬영 버튼)이 먼저 자리를
+          잡고, 뷰파인더가 그 나머지에 맞춰 늘고 줄어 — 어느 방향에서도 버튼이 접히지 않습니다. */}
       <div className="stage">
         <div
           className="viewfinder"
@@ -156,7 +156,11 @@ export function CaptureScreen({
               <span>{countdown}</span>
             </div>
           )}
-          {shooting && <div className="look-here">📷 여기를 봐요!</div>}
+          {shooting && (
+            <div className="look-here">
+              <Icon name="camera" /> 여기를 봐요!
+            </div>
+          )}
           {zoom > 1 && (
             // 확대 중일 때만 뜹니다. 되돌릴 방법이 없으면 손님이 당황해서 리셋 버튼을 같이 둡니다.
             <div className="zoom-badge">
@@ -167,47 +171,51 @@ export function CaptureScreen({
             </div>
           )}
         </div>
-
-        {/* 찍은 사진이 하나씩 채워집니다 — 점만 켜지는 것보다 진행이 훨씬 잘 보입니다. */}
-        <div className="shot-tray" aria-label={`${total}장 중 ${shotIndex}장 촬영`}>
-          {Array.from({ length: total }, (_, index) => (
-            <div
-              key={index}
-              className={`tray-slot${shots[index] ? " filled" : ""}`}
-              style={{ aspectRatio: `${ratio}` }}
-            >
-              {shots[index] ? <img src={shots[index]} alt={`${index + 1}번째 사진`} /> : index + 1}
-            </div>
-          ))}
-        </div>
-
-        <p className="status">{!ready && !shooting ? "카메라를 준비하는 중이에요…" : status}</p>
       </div>
 
-      {/* 보정은 이름만 봐선 알 수 없어, 내 얼굴에 적용된 걸 보며 고르게 합니다. */}
-      <div className="filter-bar">
+      {/* 찍은 사진이 하나씩 채워집니다 — 점만 켜지는 것보다 진행이 훨씬 잘 보입니다. */}
+      <div className="shot-tray" aria-label={`${total}장 중 ${shotIndex}장 촬영`}>
+        {Array.from({ length: total }, (_, index) => (
+          <div
+            key={index}
+            className={`tray-slot${shots[index] ? " filled" : ""}`}
+            style={{ aspectRatio: `${ratio}` }}
+          >
+            {shots[index] ? <img src={shots[index]} alt={`${index + 1}번째 사진`} /> : index + 1}
+          </div>
+        ))}
+      </div>
+
+      {/* 촬영 40초 동안 화면 낭독기도 진행을 들을 수 있게 aria-live 를 둡니다. */}
+      <p className="status" aria-live="polite">
+        {!ready && !shooting ? "카메라를 준비하는 중이에요…" : status}
+      </p>
+
+      {/* 보정은 이름만 봐선 알 수 없어, 실제 엔진으로 입힌 얼굴 썸네일을 함께 보여줍니다. */}
+      <div className="filter-bar" role="group" aria-label="사진 보정">
         {filters.map((item) => (
           <button
             key={item.key}
-            className={`pill${item.key === filterKey ? " selected" : ""}`}
+            className={`filter-chip${item.key === filterKey ? " selected" : ""}`}
             aria-pressed={item.key === filterKey}
             disabled={shooting}
             onClick={() => onFilter(item.key)}
           >
+            {swatches[item.key] ? (
+              <img src={swatches[item.key]} alt="" />
+            ) : (
+              <span className="filter-dot" aria-hidden="true" />
+            )}
             {item.name}
           </button>
         ))}
       </div>
 
       <div className="capture-actions">
-        <button className="ghost-button" onClick={onBack} disabled={shooting}>
-          <Icon name="back" /> 처음으로
-        </button>
         <button className="primary-button" onClick={onShoot} disabled={!ready || shooting}>
           <Icon name="camera" />
-          {shooting ? "촬영 중" : `${total}장 찍기`}
+          {shooting ? `촬영 중 · ${shotIndex} / ${total}` : `${total}장 찍기`}
         </button>
-        {resolution && <span className="cam-res">카메라 {resolution}</span>}
       </div>
     </main>
   );

@@ -15,13 +15,23 @@ type Props = {
 export function SelectScreen({ shots, picked, needed, ratio, busy, onToggle, onDone, onRetake }: Props) {
   // 어느 컷이 잘 나왔는지 고르는 화면이라 크게 볼 수 있어야 합니다.
   const [zoomed, setZoomed] = useState<number | null>(null);
+  // "다시 찍기"는 방금 찍은 사진을 전부 지우므로 한 번 더 묻습니다.
+  const [confirmRetake, setConfirmRetake] = useState(false);
   const remaining = needed - picked.length;
 
   return (
     <main className="select no-print">
       <header className="screen-head">
-        <h2>마음에 드는 {needed}장을 골라주세요</h2>
-        <p>고른 순서대로 인화됩니다. 다시 누르면 선택이 풀려요.</p>
+        {/* 팡파레 뒤 바로 일거리로 넘어가지 않도록 — 먼저 한 박자 축하하고 고르게 합니다. */}
+        <h2>
+          다 찍었어요! {shots.length}장 중 {needed}장을 골라요
+        </h2>
+        <p>누른 순서대로 위에서부터 들어가요. 다시 누르면 풀려요.</p>
+        <div className="pick-progress" role="img" aria-label={`${needed}장 중 ${picked.length}장 골랐어요`}>
+          {Array.from({ length: needed }, (_, index) => (
+            <i key={index} className={index < picked.length ? "on" : undefined} />
+          ))}
+        </div>
       </header>
 
       <div className="shot-grid">
@@ -52,12 +62,29 @@ export function SelectScreen({ shots, picked, needed, ratio, busy, onToggle, onD
       </div>
 
       <div className="select-actions">
-        <button className="ghost-button" onClick={onRetake} disabled={busy}>
-          <Icon name="redo" /> 다시 찍기
-        </button>
-        <button className="primary-button" onClick={onDone} disabled={remaining !== 0 || busy}>
+        {confirmRetake ? (
+          <span className="confirm-row" role="group" aria-label="다시 찍기 확인">
+            <span>지금 찍은 {shots.length}장을 지우고 다시 찍을까요?</span>
+            <button className="ghost-button danger" onClick={onRetake} disabled={busy}>
+              <Icon name="redo" /> 다시 찍기
+            </button>
+            <button className="ghost-button" onClick={() => setConfirmRetake(false)}>
+              취소
+            </button>
+          </span>
+        ) : (
+          <button className="ghost-button" onClick={() => setConfirmRetake(true)} disabled={busy}>
+            <Icon name="redo" /> 다시 찍기
+          </button>
+        )}
+        {/* 아직 못 고른 상태는 흐린 주황이 아니라 외곽선 — 안내 문구가 읽혀야 합니다. */}
+        <button
+          className={`primary-button${remaining > 0 ? " outline" : ""}`}
+          onClick={onDone}
+          disabled={remaining !== 0 || busy}
+        >
           <Icon name="check" />
-          {busy ? "만드는 중" : remaining > 0 ? `${remaining}장 더 골라주세요` : "이걸로 할래요"}
+          {busy ? "만드는 중" : remaining > 0 ? `${remaining}장 더 골라요` : "이걸로 할래요"}
         </button>
       </div>
 

@@ -13,11 +13,11 @@ import type { FilterDef } from "../types";
 // 성격이 겹치지 않도록 색온도로 갈라 두었습니다:
 //   Clear(중성) ↔ Summer(푸른 쪽) / Warm Day(채도 살린 따뜻함) ↔ Cream(채도 낮춘 우유빛)
 export const FILTERS: FilterDef[] = [
-  { key: "none", name: "Original", css: "none" },
+  { key: "none", name: "원본", css: "none" },
   {
     // 밝고 깨끗한 기본 보정. 색을 틀지 않고 중간톤만 살짝 또렷하게.
     key: "clear",
-    name: "Clear",
+    name: "맑게",
     css: "none",
     film: {
       r: [0.0, 0.115, 0.245, 0.385, 0.525, 0.66, 0.785, 0.895, 1.0],
@@ -29,7 +29,7 @@ export const FILTERS: FilterDef[] = [
   {
     // 따뜻하고 화사한 인물. 살짝 부드럽게 흐려 피부 결을 정리합니다.
     key: "warmDay",
-    name: "Warm Day",
+    name: "따뜻한 날",
     css: "none",
     // 검정을 조금만 들어 뿌옇지 않게 — '화사'는 밝고 또렷한 것이지 흐린 게 아닙니다.
     film: {
@@ -43,7 +43,7 @@ export const FILTERS: FilterDef[] = [
     // 채도와 대비가 낮은 필름. Warm Day 와 겹치지 않도록 색은 거의 중성으로 두고,
     // 낮은 대비·낮은 채도만으로 필름 느낌을 냅니다.
     key: "softFilm",
-    name: "Soft Film",
+    name: "소프트 필름",
     css: "none",
     film: {
       r: [0.082, 0.192, 0.302, 0.412, 0.518, 0.622, 0.722, 0.818, 0.908],
@@ -56,7 +56,7 @@ export const FILTERS: FilterDef[] = [
   {
     // 베이지·크림. 파랑을 크게 눌러 우유빛으로 만들고 채도를 낮춥니다.
     key: "cream",
-    name: "Cream",
+    name: "크림",
     css: "none",
     film: {
       r: [0.07, 0.198, 0.325, 0.448, 0.566, 0.678, 0.784, 0.882, 0.968],
@@ -69,7 +69,7 @@ export const FILTERS: FilterDef[] = [
   {
     // 청량한 야외. 파랑을 올리고 채도를 높여 Clear 와 확실히 구분되게 합니다.
     key: "summer",
-    name: "Summer",
+    name: "여름",
     css: "none",
     film: {
       r: [0.01, 0.126, 0.252, 0.38, 0.506, 0.63, 0.752, 0.872, 0.986],
@@ -81,7 +81,7 @@ export const FILTERS: FilterDef[] = [
   {
     // 블랙이 살짝 뜬 레트로. 검정을 가장 많이 들고 하이라이트도 눌러 바랜 느낌을 냅니다.
     key: "vintage",
-    name: "Vintage",
+    name: "빈티지",
     css: "none",
     film: {
       r: [0.135, 0.238, 0.34, 0.438, 0.532, 0.622, 0.708, 0.792, 0.872],
@@ -94,7 +94,7 @@ export const FILTERS: FilterDef[] = [
   {
     // 부드러운 흑백. 채도를 완전히 빼되 검정을 들어 딱딱하지 않게.
     key: "mono",
-    name: "Mono",
+    name: "흑백",
     css: "none",
     film: {
       r: [0.07, 0.18, 0.292, 0.404, 0.514, 0.622, 0.726, 0.828, 0.928],
@@ -113,7 +113,7 @@ export const FILTERS: FilterDef[] = [
     // 색은 완전히 중성으로 두고 S자 곡선과 채도만 씁니다.
     // (CSS contrast() 는 직선이라 이 S자를 못 만듭니다 — 그래서 film 커브를 씁니다.)
     key: "pop",
-    name: "Pop",
+    name: "팝",
     css: "none",
     film: {
       r: [0.0, 0.09, 0.205, 0.345, 0.5, 0.655, 0.795, 0.91, 1.0],
@@ -126,7 +126,7 @@ export const FILTERS: FilterDef[] = [
     // 차분한 한색. Summer 도 푸른 쪽이지만 그건 밝고 채도가 높은 '청량함'이고,
     // 이건 채도를 낮추고 하이라이트를 눌러 가라앉힌 저녁 공기입니다.
     key: "blueHour",
-    name: "Blue Hour",
+    name: "블루 아워",
     css: "none",
     film: {
       r: [0.055, 0.158, 0.262, 0.365, 0.467, 0.567, 0.665, 0.762, 0.855],
@@ -140,7 +140,7 @@ export const FILTERS: FilterDef[] = [
     // 해질녘. Warm Day 의 따뜻함은 은근한데 이건 확실히 물들입니다.
     // 빨강을 중간톤에서 크게 올리고 파랑을 눌러 노을빛을 만듭니다.
     key: "golden",
-    name: "Golden",
+    name: "노을",
     css: "none",
     film: {
       r: [0.03, 0.185, 0.342, 0.487, 0.618, 0.734, 0.836, 0.921, 0.988],
@@ -153,7 +153,7 @@ export const FILTERS: FilterDef[] = [
     // 세피아. 채도를 0 으로 만든 뒤 채널 커브가 갈라지며 갈색으로 물듭니다
     // (채도 → 커브 순서라 가능한 방식입니다). Mono 가 중성 흑백이라면 이쪽은 오래된 사진.
     key: "antique",
-    name: "Antique",
+    name: "앤티크",
     css: "none",
     film: {
       r: [0.118, 0.228, 0.338, 0.447, 0.553, 0.655, 0.752, 0.844, 0.928],

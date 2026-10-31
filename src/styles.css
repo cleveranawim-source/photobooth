@@ -67,6 +67,13 @@ label {
   overflow: clip;
 }
 
+/* 촬영 화면: 높이를 뷰포트에 고정해 뷰파인더가 남는 높이에 맞춰 줄어들게 합니다. */
+.app--fit {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+}
+
 /* ── 공용 컨트롤 ───────────────────────────────────────────── */
 button {
   font: inherit;
@@ -79,6 +86,23 @@ button {
 button:disabled {
   opacity: 0.45;
   cursor: default;
+}
+
+/* 버튼 포커스 링은 브라우저 기본(파랑 auto)이 아니라 앱 팔레트로 — 키보드·스위치 사용자에게도 같은 앱이어야 합니다. */
+button:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* 과한 움직임을 꺼 둔 기기에서는 장식 애니메이션을 생략합니다(카운트다운 숫자는 그대로 읽힙니다). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 .primary-button {
@@ -102,6 +126,31 @@ button:disabled {
 .primary-button svg {
   width: 22px;
   height: 22px;
+}
+
+/* 아직 조건이 안 된 주 버튼 — 흐린 주황(약 2:1)은 안내 문구가 안 읽힙니다. 외곽선으로 또렷하게. */
+.primary-button.outline,
+.primary-button.outline:disabled {
+  opacity: 1;
+  background: transparent;
+  border: 2px solid var(--ink);
+  color: var(--ink);
+}
+
+/* 되돌릴 수 없는 동작 앞의 한 번 더 묻기 */
+.confirm-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.ghost-button.danger {
+  border-color: var(--ink);
+  color: var(--ink);
 }
 
 .ghost-button {
@@ -177,20 +226,82 @@ button:disabled {
   padding: 6px 0;
 }
 
-.frame-name {
+/* 진행 단계 — 실제 순서라 번호가 정보입니다. */
+.steps {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
   font-size: 13px;
   font-weight: 700;
   color: var(--sub);
+}
+
+.steps li {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 11px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.steps li + li::before {
+  content: "";
+  width: 12px;
+  height: 2px;
+  margin-right: 8px;
+  border-radius: 2px;
+  background: var(--edge);
+}
+
+.steps li.on {
+  background: var(--ink);
+  color: #fff;
+}
+
+.steps-num {
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── 환영 화면 ─────────────────────────────────────────────── */
 .welcome {
   flex: 1;
   display: grid;
-  grid-template-columns: minmax(280px, 0.85fr) minmax(0, 1.15fr);
-  gap: clamp(20px, 3vw, 46px);
+  grid-template-columns: minmax(300px, 0.85fr) minmax(0, 1.15fr);
+  /* 왼쪽 열: 소개(1행) + 시작 버튼(2행). 오른쪽 열: 고르기(세 행 모두). */
+  grid-template-rows: auto auto 1fr;
+  column-gap: clamp(20px, 3vw, 46px);
+  row-gap: 14px;
   align-items: start;
   padding-top: clamp(8px, 2vh, 30px);
+}
+
+.welcome-options {
+  grid-column: 2;
+  grid-row: 1 / 4;
+}
+
+/* 시작 버튼은 미리보기 바로 아래 — 예전엔 오른쪽 목록 위를 덮는 스티키 바였습니다. */
+.start-block {
+  grid-column: 1;
+  grid-row: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.start-block .primary-button {
+  width: 100%;
+  padding: 18px 30px;
+  font-size: 21px;
+}
+
+.start-block .text-link {
+  align-self: center;
 }
 
 .welcome-hero {
@@ -213,7 +324,7 @@ button:disabled {
 
 .brand-tagline {
   margin: -8px 0 0;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 800;
   letter-spacing: 0.24em;
   text-transform: uppercase;
@@ -231,7 +342,7 @@ button:disabled {
 
 .hero-preview .layout-thumb {
   max-width: min(100%, 300px);
-  max-height: 46vh;
+  max-height: 40vh;
   width: auto;
   height: auto;
   border-radius: 8px;
@@ -249,33 +360,15 @@ button:disabled {
 .welcome-options {
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: 20px;
   padding-bottom: 10px;
-}
-
-/* 다 고른 뒤 누르는 자리. 세로 화면에서 목록이 길어져도 바닥에 붙어 따라옵니다. */
-.start-bar {
-  position: sticky;
-  bottom: 0;
-  z-index: 5;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 14px 0 12px;
-  margin-top: 4px;
-  background: linear-gradient(to bottom, transparent, var(--paper) 22%);
-}
-
-.start-bar .primary-button {
-  width: min(100%, 320px);
-  padding: 18px 30px;
-  font-size: 20px;
+  min-width: 0;
 }
 
 .text-link {
-  padding: 8px 12px;
-  font-size: 14px;
+  padding: 10px 14px;
+  min-height: 44px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--sub);
   text-decoration: underline;
@@ -284,25 +377,42 @@ button:disabled {
 
 .option-group h2 {
   display: flex;
-  align-items: center;
-  gap: 7px;
+  align-items: baseline;
+  gap: 10px;
   margin: 0 0 10px;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 800;
-  letter-spacing: 0.02em;
-  color: var(--sub);
+  color: var(--ink);
 }
 
-.option-group h2 svg {
-  width: 16px;
-  height: 16px;
+.option-group h2 small {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--sub);
 }
 
 .option-note {
-  margin: -6px 0 10px;
-  font-size: 12px;
+  margin: 0;
+  font-size: 13px;
   line-height: 1.5;
   color: var(--sub);
+}
+
+/* 고른 카드의 체크 — 테두리 색만으로는 색각 이상·강한 조명에서 구분이 안 됩니다. */
+.pick-mark {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 14px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .layout-list {
@@ -313,6 +423,7 @@ button:disabled {
 }
 
 .layout-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -324,18 +435,39 @@ button:disabled {
   text-align: center;
 }
 
-.layout-card.selected {
+.layout-card.selected,
+.frame-card.selected {
   border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(255, 159, 28, 0.22);
 }
 
 .layout-card strong {
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .layout-card small {
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.35;
   color: var(--sub);
+}
+
+/* 모양 실루엣 — 색·장식 없이 칸 배치만. 고른 카드는 남색으로 진해집니다. */
+.shape-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 84px;
+  color: var(--sub);
+}
+
+.layout-card.selected .shape-slot {
+  color: var(--ink);
+}
+
+.layout-shape {
+  height: 100%;
+  width: auto;
+  max-width: 100%;
 }
 
 /* 미리보기가 들어가는 고정 높이 칸. 용지 비율이 제각각이라(4×6 세로, 6×4 가로)
@@ -371,43 +503,83 @@ button:disabled {
   gap: 7px;
 }
 
-/* 인화 프레임 고르기 — 고른 레이아웃을 각 프레임 색으로 그려 인화물을 미리 보여줍니다. */
-.frame-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+/* 인화 프레임 고르기 — 고른 레이아웃을 각 프레임 색으로 그려 인화물을 미리 보여줍니다.
+   15장을 격자로 펼치면 절반이 접힘선 아래로 숨어, 가로 한 줄로 넘겨 보게 합니다. */
+.frame-row {
+  display: flex;
   gap: 10px;
-  align-items: start;
+  overflow-x: auto;
+  /* 오른쪽 여백은 마스크 폭만큼 — 끝까지 넘겼을 때 마지막 카드가 흐려지지 않게. */
+  padding: 4px 44px 10px 4px;
+  margin: -4px -4px 0;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  /* 오른쪽 가장자리를 살짝 흐려 "더 있다"는 신호를 줍니다. */
+  mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent);
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent);
+}
+
+.frame-row::-webkit-scrollbar {
+  display: none;
 }
 
 .frame-card {
+  position: relative;
+  flex: 0 0 150px;
+  scroll-snap-align: start;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 5px;
-  padding: 10px 6px 9px;
+  padding: 10px 8px 10px;
   border-radius: var(--radius);
   border: 2px solid var(--edge);
   background: var(--surface);
   text-align: center;
 }
 
-.frame-card.selected {
-  border-color: var(--accent);
-}
-
 .frame-card strong {
-  font-size: 12.5px;
+  font-size: 14px;
   line-height: 1.25;
 }
 
 .frame-card small {
-  font-size: 10.5px;
+  font-size: 13px;
   line-height: 1.3;
   color: var(--sub);
 }
 
 .frame-card .thumb-slot {
-  height: 108px;
+  height: 112px;
+}
+
+/* 오늘 행사용으로 켠 로고 프레임 — 맨 앞에 오고 표식이 붙습니다. */
+.event-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.more-card {
+  flex-basis: 110px;
+  justify-content: center;
+  gap: 4px;
+  border-style: dashed;
+  color: var(--sub);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.more-card b {
+  font-size: 26px;
+  color: var(--ink);
 }
 
 .frame-chip {
@@ -478,28 +650,31 @@ button:disabled {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 18px;
+  gap: 12px;
   min-height: 0;
 }
 
+/* 뷰파인더가 들어가는 자리. 아래 줄들이 먼저 자리를 잡고 여기가 나머지를 받습니다.
+   container-type: size 로 이 높이(cqh)를 뷰파인더 폭 계산에 넘깁니다. */
 .stage {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
+  flex: 1;
   min-height: 0;
   width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  container-type: size;
 }
 
 /* 뷰파인더는 **찍히는 화각과 정확히 같아야** 합니다.
    aspect-ratio 에 max-height 를 같이 걸면, 높이만 잘리고 폭은 그대로라 비율이 깨집니다
    (단컷=정사각 레이아웃인데 940×558 와이드로 나오던 문제). 높이 상한을 폭 계산에 넣어
-   폭이 함께 줄어들게 해야 비율이 유지됩니다. --vf-ratio 는 App 이 넣어 줍니다. */
+   폭이 함께 줄어들게 해야 비율이 유지됩니다. --vf-ratio 는 App 이 넣어 줍니다.
+   높이 상한은 고정 vh 가 아니라 .stage 가 실제로 받은 높이(100cqh)입니다 — 그래서
+   가로 iPad 에서도 촬영 버튼이 접힘선 아래로 떨어지지 않습니다. */
 .viewfinder {
-  --vf-cap: 62vh;
   position: relative;
-  width: min(100%, 940px, calc(var(--vf-cap) * var(--vf-ratio, 1.6)));
+  width: min(100%, 940px, calc(100cqh * var(--vf-ratio, 1.6)));
   aspect-ratio: var(--vf-ratio, 1.6);
   border-radius: var(--radius);
   overflow: hidden;
@@ -588,12 +763,12 @@ button:disabled {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 124px;
-  height: 124px;
+  width: 112px;
+  height: 112px;
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.42);
   color: #fff;
-  font-size: 58px;
+  font-size: 54px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
 }
@@ -648,6 +823,9 @@ button:disabled {
 
 .look-here {
   position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 7px;
   padding: 8px 16px;
   border-radius: 999px;
   background: var(--accent);
@@ -675,8 +853,13 @@ button:disabled {
   transform: translateX(-50%);
 }
 
+.look-here svg {
+  width: 18px;
+  height: 18px;
+}
+
 .edge-top .look-here {
-  top: 142px;
+  top: 130px;
   left: 50%;
   transform: translateX(-50%);
 }
@@ -719,7 +902,7 @@ button:disabled {
   border-radius: 8px;
   border: 2px dashed var(--edge);
   overflow: hidden;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 800;
   color: var(--sub);
   opacity: 0.7;
@@ -749,18 +932,64 @@ button:disabled {
   }
 }
 
-/* 보정 고르기 — 촬영 화면에 두어 내 얼굴에 적용된 걸 보며 고르게 합니다. */
+/* 보정 고르기 — 12개를 두 줄로 접지 않고 한 줄로 넘깁니다. 칩마다 실제 엔진으로 입힌
+   얼굴 썸네일이 있어 이름을 몰라도 고를 수 있습니다. */
 .filter-bar {
   display: flex;
   gap: 8px;
-  flex-wrap: wrap;
-  justify-content: center;
-  max-width: 940px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  max-width: min(100%, 940px);
+  padding: 4px 4px;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.filter-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.filter-chip {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  min-width: 78px;
+  padding: 6px 8px 8px;
+  border-radius: 14px;
+  border: 2px solid var(--edge);
+  background: var(--surface);
+  font-size: 13.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.filter-chip img,
+.filter-dot {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--mat);
+}
+
+/* 고른 보정은 테두리가 아니라 채움 — 열두 개 중 하나가 멀리서도 보여야 합니다. */
+.filter-chip.selected {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: #fff;
+}
+
+.filter-chip.selected img {
+  box-shadow: 0 0 0 2px #fff;
 }
 
 .status {
   margin: 0;
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 700;
   color: var(--sub);
 }
@@ -773,10 +1002,15 @@ button:disabled {
   justify-content: center;
 }
 
-.cam-res {
-  font-size: 11px;
+.capture-actions .primary-button {
+  min-width: 240px;
+}
+
+/* 촬영 중 비활성은 흐린 주황 대신 읽히는 회색 — 버튼 글자가 곧 진행 표시입니다. */
+.capture-actions .primary-button:disabled {
+  opacity: 1;
+  background: var(--mat);
   color: var(--sub);
-  opacity: 0.7;
 }
 
 /* ── 고르기 화면 ───────────────────────────────────────────── */
@@ -802,8 +1036,35 @@ button:disabled {
 
 .screen-head p {
   margin: 0;
-  font-size: 14px;
+  font-size: 15px;
   color: var(--sub);
+}
+
+/* 몇 장 골랐는지 — 비활성 버튼 글자에만 있던 정보를 막대로 보여줍니다. */
+.pick-progress {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.pick-progress i {
+  width: 42px;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--mat);
+}
+
+.pick-progress i.on {
+  background: var(--accent);
+}
+
+.admin-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  text-align: left;
 }
 
 /* 어느 컷이 잘 나왔는지 판단하는 화면입니다. auto-fit 으로 두면 가로가 넓을 때
@@ -849,13 +1110,13 @@ button:disabled {
 
 .zoom-button {
   position: absolute;
-  right: 8px;
-  bottom: 8px;
+  right: 10px;
+  bottom: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.92);
   color: var(--ink);
@@ -936,13 +1197,15 @@ button:disabled {
 /* ── 완성 화면 ─────────────────────────────────────────────── */
 .result {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 380px);
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 400px);
   gap: clamp(20px, 3vw, 46px);
-  align-items: center;
+  /* center 로 두면 오른쪽 열이 길어질 때 사진이 아래로 밀려 화면 밖으로 나갑니다. */
+  align-items: start;
 }
 
 .print-mat {
-  position: relative;
+  position: sticky;
+  top: 12px;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -976,6 +1239,9 @@ button:disabled {
 
 .recomposing {
   position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   margin: 0;
   padding: 9px 18px;
   border-radius: 999px;
@@ -986,17 +1252,19 @@ button:disabled {
   color: var(--sub);
 }
 
-/* 사진은 그대로 두고 겉모습만 바꾸는 패널 */
+/* 사진은 그대로 두고 겉모습만 바꾸는 패널을 여는 버튼 */
 .dress-toggle {
   display: flex;
   align-items: center;
   gap: 9px;
   padding: 13px 18px;
+  min-height: 60px;
   border-radius: var(--radius);
   border: 2px dashed var(--edge);
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--ink);
+  text-align: left;
 }
 
 .dress-toggle svg {
@@ -1005,31 +1273,159 @@ button:disabled {
   color: var(--accent-ink);
 }
 
-.dress-toggle .chevron {
+.dress-toggle small {
   margin-left: auto;
-  font-size: 11px;
+  font-size: 13px;
+  font-weight: 500;
   color: var(--sub);
 }
 
-.dress-panel {
+/* 꾸미기 시트 — 아래에서 올라와 사진을 밀어내지 않습니다. */
+.dress-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
   display: flex;
   flex-direction: column;
-  gap: 9px;
-  padding: 14px;
-  border-radius: var(--radius);
+  gap: 10px;
+  max-height: 46vh;
+  overflow-y: auto;
+  padding: 14px clamp(16px, 3vw, 40px) max(18px, env(safe-area-inset-bottom, 0px));
+  border-radius: 22px 22px 0 0;
   background: var(--surface);
-  animation: fade-in 0.2s ease-out;
+  box-shadow: 0 -12px 40px rgba(18, 58, 92, 0.18);
+  animation: sheet-up 0.22s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.dress-panel h3 {
+@keyframes sheet-up {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dress-sheet h3 {
   margin: 4px 0 0;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 800;
   color: var(--sub);
 }
 
-.dress-panel .option-note {
-  margin: 0;
+.chip-row {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px 2px 6px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.chip-row::-webkit-scrollbar {
+  display: none;
+}
+
+.chip-row .frame-chip {
+  flex: 0 0 auto;
+}
+
+.sheet-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(220px, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.sheet-caption .text-field {
+  margin-top: 6px;
+}
+
+/* 끝맺음 — 인쇄 창이 닫힌 뒤 화면이 말해 줍니다. */
+.done-toast {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: #e4f6e9;
+  border: 1.5px solid #8fd694;
+  color: #1f5a30;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.done-toast small {
+  display: block;
+  font-weight: 500;
+}
+
+.done-mark {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #2e8b57;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sample-badge {
+  margin-left: 10px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--mat);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+  vertical-align: middle;
+}
+
+/* 자동 초기화 예고 */
+.idle-note {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--sub);
+}
+
+.idle-bar {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--mat);
+  overflow: hidden;
+}
+
+.idle-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--sub);
+  transition: width 1s linear;
+}
+
+.result-actions .restart {
+  align-self: flex-start;
 }
 
 .result-actions {
@@ -1045,7 +1441,7 @@ button:disabled {
 
 .result-hint {
   margin: -4px 0 6px;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.6;
   color: var(--sub);
 }
@@ -1075,11 +1471,11 @@ button:disabled {
 }
 
 .action-button strong {
-  font-size: 16px;
+  font-size: 17px;
 }
 
 .action-button small {
-  font-size: 12px;
+  font-size: 13.5px;
   color: var(--sub);
 }
 
@@ -1096,7 +1492,7 @@ button:disabled {
 
 .clip-pending {
   margin: 0;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--sub);
 }
 
@@ -1154,7 +1550,7 @@ button:disabled {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--sub);
 }
@@ -1179,7 +1575,7 @@ button:disabled {
 
 .admin-note {
   margin: 0;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
   color: var(--sub);
 }
@@ -1199,6 +1595,32 @@ button:disabled {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .welcome {
+    grid-template-rows: auto auto auto;
+  }
+
+  .welcome-options {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  /* 세로에서는 목록이 길어 시작 버튼이 바닥에 붙어 따라옵니다 — 반투명이 아니라
+     불투명 + 윗선이라 카드가 반쯤 비쳐 보이는 일이 없습니다. */
+  .start-block {
+    grid-row: 3;
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+    align-items: center;
+    padding: 12px 0 10px;
+    border-top: 1px solid var(--edge);
+    background: var(--paper);
+  }
+
+  .start-block .primary-button {
+    width: min(100%, 360px);
+  }
+
   .welcome-hero {
     align-items: center;
     text-align: center;
@@ -1208,12 +1630,19 @@ button:disabled {
     max-width: none;
   }
 
-  .viewfinder {
-    --vf-cap: 46vh;
-  }
-
   .composite {
     max-height: 52vh;
+  }
+
+  .sheet-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* 컨테이너 쿼리 단위를 모르는 옛 브라우저용 예비치 */
+@supports not (width: 1cqh) {
+  .viewfinder {
+    width: min(100%, 940px, calc(50vh * var(--vf-ratio, 1.6)));
   }
 }
 

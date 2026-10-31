@@ -89,3 +89,46 @@ export function FrameSwatch({ frame }: { frame: Frame }) {
     </span>
   );
 }
+
+/**
+ * 레이아웃 고르기용 실루엣 — 사진 칸이 어떻게 놓이는지만 보여줍니다.
+ * 합성 썸네일은 프레임 색·장식까지 섞여 있어 "모양"을 고르는 자리에서는 오히려 읽기 어려웠습니다.
+ * 색은 currentColor 라 카드 상태(선택/비선택)를 그대로 따릅니다.
+ */
+export function LayoutShape({ layout }: { layout: Layout }) {
+  const width = layout.paper.w * 300;
+  const height = layout.paper.h * 300;
+  return (
+    <svg className="layout-shape" viewBox={`0 0 ${width} ${height}`} aria-hidden="true">
+      <rect x="6" y="6" width={width - 12} height={height - 12} rx="18" fill="none" stroke="currentColor" strokeWidth="14" />
+      {layout.tiles.map((tile, tileIndex) => (
+        <g key={tileIndex} transform={`translate(${tile.x} ${tile.y})`}>
+          {layout.cells.map((cell, cellIndex) => (
+            <rect
+              key={cellIndex}
+              x={cell.x}
+              y={cell.y}
+              width={cell.w}
+              height={cell.h}
+              rx="14"
+              fill="currentColor"
+              opacity="0.28"
+            />
+          ))}
+        </g>
+      ))}
+      {layout.cut && layout.tiles.length > 1 && (
+        <line
+          x1={layout.cut === "vertical" ? width / 2 : 40}
+          y1={layout.cut === "vertical" ? 40 : height / 2}
+          x2={layout.cut === "vertical" ? width / 2 : width - 40}
+          y2={layout.cut === "vertical" ? height - 40 : height / 2}
+          stroke="currentColor"
+          strokeWidth="10"
+          strokeDasharray="36 28"
+          opacity="0.6"
+        />
+      )}
+    </svg>
+  );
+}

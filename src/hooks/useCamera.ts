@@ -33,7 +33,8 @@ export function useCamera() {
   const start = useCallback(async () => {
     setError(null);
     if (!navigator.mediaDevices?.getUserMedia) {
-      setError("카메라를 사용할 수 없습니다. iPad의 Safari에서 HTTPS 주소로 열어주세요.");
+      // 키오스크 앞 학생은 설정을 못 고칩니다 — 운영자를 부르는 문구로 둡니다.
+      setError("이 브라우저에서는 카메라를 쓸 수 없어요. 선생님을 불러주세요.");
       return false;
     }
     try {
@@ -56,8 +57,8 @@ export function useCamera() {
     } catch (caught) {
       setError(
         caught instanceof DOMException && caught.name === "NotAllowedError"
-          ? "카메라 권한이 필요합니다. Safari 설정에서 카메라 접근을 허용해주세요."
-          : "카메라를 시작하지 못했습니다. 다른 앱이 카메라를 사용 중인지 확인해주세요.",
+          ? "카메라 사용이 꺼져 있어요. 선생님을 불러주세요."
+          : "카메라를 켜지 못했어요. 선생님을 불러주세요.",
       );
       return false;
     }

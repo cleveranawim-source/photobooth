@@ -55,9 +55,9 @@ export async function shareClip(blob: Blob, ext: string) {
  * AirPrint 인쇄. 홈 화면에 추가한 standalone 웹앱에서는 window.print() 가 동작하지 않는
  * iPadOS 버전이 있어 공유 시트로 폴백합니다(시트의 '프린트' 항목으로 인쇄).
  */
-export function printImage(dataUrl: string) {
+export async function printImage(dataUrl: string) {
   if (isStandalone()) {
-    void shareImage(dataUrl);
+    await shareImage(dataUrl);
     return;
   }
   window.print();

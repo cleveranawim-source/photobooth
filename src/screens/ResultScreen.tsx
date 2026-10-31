@@ -17,6 +17,12 @@ type Props = {
   clipPending: boolean;
   /** 다시 꾸미는 중(재합성) */
   busy: boolean;
+  /** 인쇄 창을 한 번이라도 열었는지 — 끝맺음 문구와 버튼 순서가 바뀝니다. */
+  printed: boolean;
+  /** 카메라 없이 둘러보는 샘플인지 */
+  sample: boolean;
+  /** 자동 초기화까지 남은 초(예고 구간에만 값이 있음) */
+  secondsLeft: number | null;
   onFrame: (key: string) => void;
   onLayout: (key: string) => void;
   onCaption: (value: string) => void;
@@ -37,6 +43,9 @@ export function ResultScreen({
   clip,
   clipPending,
   busy,
+  printed,
+  sample,
+  secondsLeft,
   onFrame,
   onLayout,
   onCaption,
@@ -46,6 +55,28 @@ export function ResultScreen({
   onRestart,
 }: Props) {
   const [dressing, setDressing] = useState(false);
+  const twoTiles = layout.tiles.length > 1;
+  const cutHint = twoTiles ? "가운데 선을 따라 자르면 두 장이 돼요." : null;
+
+  const printButton = (
+    <button className={`action-button${printed ? "" : " print-action"}`} onClick={onPrint}>
+      <Icon name="print" />
+      <span>
+        <strong>{printed ? "한 장 더 인쇄" : `사진 인쇄하기${copies > 1 ? ` (${copies}장)` : ""}`}</strong>
+        <small>{printed ? "같은 사진을 한 번 더" : "프린터 고르는 창이 열려요"}</small>
+      </span>
+    </button>
+  );
+
+  const shareButton = (
+    <button className={`action-button${printed ? " print-action" : ""}`} onClick={onShare}>
+      <Icon name="download" />
+      <span>
+        <strong>iPad에 저장·공유</strong>
+        <small>사진 앱 또는 AirDrop</small>
+      </span>
+    </button>
+  );
 
   return (
     <main className="result no-print">
@@ -56,31 +87,35 @@ export function ResultScreen({
           alt="완성된 사진"
           style={{ aspectRatio: `${layout.paper.w} / ${layout.paper.h}` }}
         />
-        {busy && <p className="recomposing">다시 꾸미는 중…</p>}
+        {busy && (
+          <p className="recomposing" role="status">
+            다시 꾸미는 중…
+          </p>
+        )}
       </div>
 
       <div className="result-actions">
-        <h2>다 됐어요!</h2>
-        <p className="result-hint">
-          {layout.paper.w}×{layout.paper.h}인치 용지 기준입니다.
-          {layout.tiles.length > 1 && " 인화 후 안내선을 따라 자르면 두 장이 돼요."}
-        </p>
+        <h2>
+          다 됐어요!{sample && <span className="sample-badge">샘플이에요</span>}
+        </h2>
 
-        <button className="action-button print-action" onClick={onPrint}>
-          <Icon name="print" />
-          <span>
-            <strong>사진 인쇄하기{copies > 1 ? ` (${copies}장)` : ""}</strong>
-            <small>프린터 고르는 창이 열려요</small>
-          </span>
-        </button>
+        {/* 끝맺음은 앱이 맡습니다 — 인쇄 창이 닫힌 뒤에도 화면이 그대로면 손님은 또 누릅니다. */}
+        {printed ? (
+          <div className="done-toast" role="status">
+            <span className="done-mark" aria-hidden="true">
+              ✓
+            </span>
+            <span>
+              인쇄로 보냈어요. 프린터 옆에서 받아가세요.
+              {cutHint && <small>{cutHint}</small>}
+            </span>
+          </div>
+        ) : (
+          cutHint && <p className="result-hint">{cutHint}</p>
+        )}
 
-        <button className="action-button" onClick={onShare}>
-          <Icon name="download" />
-          <span>
-            <strong>iPad에 저장·공유</strong>
-            <small>사진 앱 또는 AirDrop</small>
-          </span>
-        </button>
+        {printed ? shareButton : printButton}
+        {printed ? printButton : shareButton}
 
         {clip && (
           <button className="action-button" onClick={onSaveClip}>
@@ -91,7 +126,11 @@ export function ResultScreen({
             </span>
           </button>
         )}
-        {clipPending && <p className="clip-pending">타임랩스 영상을 만드는 중이에요…</p>}
+        {clipPending && (
+          <p className="clip-pending" role="status">
+            타임랩스 영상을 만드는 중이에요…
+          </p>
+        )}
 
         {/* 사진은 그대로 두고 겉모습만 바꿉니다 — 다시 찍을 필요가 없습니다. */}
         <button
@@ -100,59 +139,82 @@ export function ResultScreen({
           onClick={() => setDressing((previous) => !previous)}
         >
           <Icon name="sparkle" /> 다르게 꾸며보기
-          <span className="chevron">{dressing ? "▲" : "▼"}</span>
+          <small>프레임·모양·문구만 바꿔요</small>
         </button>
 
-        {dressing && (
-          <div className="dress-panel">
-            <p className="option-note">사진은 그대로예요. 겉모습만 바꿔서 다시 만들어 드려요.</p>
-
-            <h3>프레임</h3>
-            <div className="chip-list tight">
-              {frames.map((item) => (
-                <button
-                  key={item.key}
-                  className={`frame-chip${item.key === frameKey ? " selected" : ""}`}
-                  aria-pressed={item.key === frameKey}
-                  onClick={() => onFrame(item.key)}
-                >
-                  <FrameSwatch frame={item} />
-                  <span>
-                    <strong>{item.name}</strong>
-                  </span>
-                </button>
-              ))}
-            </div>
-
-            <h3>모양</h3>
-            <div className="chip-list tight">
-              {layouts.map((item) => (
-                <button
-                  key={item.key}
-                  className={`pill${item.key === layout.key ? " selected" : ""}`}
-                  aria-pressed={item.key === layout.key}
-                  onClick={() => onLayout(item.key)}
-                >
-                  {item.name}
-                </button>
-              ))}
-            </div>
-
-            <h3>사진 아래 문구</h3>
-            <input
-              className="text-field"
-              value={caption}
-              maxLength={20}
-              onChange={(event) => onCaption(event.target.value)}
-              placeholder="오늘, 참 좋다"
-            />
-          </div>
-        )}
-
-        <button className="ghost-button" onClick={onRestart}>
+        <button className="ghost-button restart" onClick={onRestart}>
           <Icon name="redo" /> 새로 찍기
         </button>
+
+        {/* 조용히 사라지던 90초 — 마지막 구간엔 남은 시간을 보여주고 누르면 계속되게 합니다. */}
+        {secondsLeft !== null && (
+          <div className="idle-note" role="status">
+            <span>{secondsLeft}초 뒤 처음 화면으로 돌아가요</span>
+            <span className="idle-bar" aria-hidden="true">
+              <i style={{ width: `${Math.min(100, (secondsLeft / 20) * 100)}%` }} />
+            </span>
+            <span>화면을 누르면 계속</span>
+          </div>
+        )}
       </div>
+
+      {/* 꾸미기는 아래에서 올라오는 시트 — 오른쪽 열이 길어져 사진이 밀려나지 않습니다. */}
+      {dressing && (
+        <div className="dress-sheet" role="dialog" aria-label="다르게 꾸며보기">
+          <div className="sheet-head">
+            <p className="option-note">사진은 그대로예요. 겉모습만 바꿔서 다시 만들어 드려요.</p>
+            <button className="ghost-button" onClick={() => setDressing(false)}>
+              닫기
+            </button>
+          </div>
+
+          <h3>프레임</h3>
+          <div className="chip-row">
+            {frames.map((item) => (
+              <button
+                key={item.key}
+                className={`frame-chip${item.key === frameKey ? " selected" : ""}`}
+                aria-pressed={item.key === frameKey}
+                onClick={() => onFrame(item.key)}
+              >
+                <FrameSwatch frame={item} />
+                <span>
+                  <strong>{item.name}</strong>
+                </span>
+              </button>
+            ))}
+          </div>
+
+          <div className="sheet-row">
+            <div>
+              <h3>모양</h3>
+              <div className="chip-list tight">
+                {layouts.map((item) => (
+                  <button
+                    key={item.key}
+                    className={`pill${item.key === layout.key ? " selected" : ""}`}
+                    aria-pressed={item.key === layout.key}
+                    onClick={() => onLayout(item.key)}
+                  >
+                    {item.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="sheet-caption">
+              <h3>사진 아래 문구</h3>
+              <input
+                className="text-field"
+                value={caption}
+                maxLength={20}
+                onChange={(event) => onCaption(event.target.value)}
+                placeholder="오늘, 참 좋다"
+                aria-label="사진 아래 문구"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

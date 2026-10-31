@@ -24,6 +24,8 @@ import { CaptureScreen } from "./screens/CaptureScreen";
 import { SelectScreen } from "./screens/SelectScreen";
 import { ResultScreen } from "./screens/ResultScreen";
 import { AdminScreen } from "./screens/AdminScreen";
+import { Icon } from "./components/Icon";
+import { Steps } from "./components/Steps";
 
 export default function App() {
   const [settings, setSettings] = useState<Settings>(loadSettings);
@@ -49,6 +51,8 @@ export default function App() {
   // 타임랩스를 실제로 만들고 있는 중일 때만 "만드는 중" 안내를 띄웁니다
   // (샘플 둘러보기처럼 촬영을 안 한 경우엔 영원히 안 나올 영상을 기다리게 두면 안 됩니다).
   const [clipPending, setClipPending] = useState(false);
+  // 인쇄 창을 열었는지 — 완성 화면의 끝맺음 문구와 버튼 순서가 바뀝니다.
+  const [printed, setPrinted] = useState(false);
 
   const [shooting, setShooting] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
@@ -182,12 +186,13 @@ export default function App() {
     setPicked([]);
     setShotIndex(0);
     setError(null);
+    setPrinted(false);
     setZoom(1); // 다음 손님이 앞사람 확대 상태를 그대로 물려받지 않도록
   }, [stopCamera]);
 
   // 촬영 대기 화면도 초기화 대상입니다 — 손님이 여기까지 왔다가 그냥 가면 카메라가
   // 켜진 채(표시등 점등) 줌·필터가 다음 손님에게 남습니다. 촬영 시퀀스 중에는 걸지 않습니다.
-  useIdleReset(
+  const idleSecondsLeft = useIdleReset(
     phase === "result" || phase === "select" || (phase === "camera" && !shooting),
     settings.idleSeconds,
     reset,
@@ -196,6 +201,7 @@ export default function App() {
   const startCamera = async () => {
     setError(null);
     setComposite(null);
+    setPrinted(false);
     setShots([]);
     setPicked([]);
     setShotIndex(0);
@@ -280,13 +286,14 @@ export default function App() {
     setPicked([]);
     setClip(null);
     setClipPending(false);
+    setPrinted(false);
     ensureAudio(); // 사용자 제스처 안에서 오디오를 깨워둡니다 (iPad Safari 자동재생 정책)
     const frames: string[] = [];
     const timelapse = settings.timelapse ? startTimelapseCapture(() => videoRef.current) : null;
     try {
       for (let index = 0; index < totalShots; index += 1) {
         if (aborted()) return;
-        setStatus(`${index + 1}번째 사진을 준비하세요`);
+        setStatus(`${index + 1}번째 사진을 준비해요`);
         for (let number = settings.countdown; number >= 1; number -= 1) {
           setCountdown(number);
           playBeep(number === 1 ? 1320 : 880, 80);
@@ -388,6 +395,7 @@ export default function App() {
 
   const openSample = async () => {
     setError(null);
+    setPrinted(false);
     setSampleMode(true);
     setSourceShots([]);
     try {
@@ -397,6 +405,13 @@ export default function App() {
     } catch {
       setError("샘플을 만들지 못했습니다.");
     }
+  };
+
+  const print = async () => {
+    if (!composite) return;
+    await printImage(composite);
+    // 인쇄 창이 닫히면 "보냈어요"로 끝맺습니다. 취소했더라도 '한 장 더' 버튼으로 바로 되돌릴 수 있습니다.
+    setPrinted(true);
   };
 
   const applySettings = (next: Settings) => {
@@ -411,17 +426,25 @@ export default function App() {
   // (프레임마다 화면 전체가 밝았다 어두웠다 하면 키오스크로 쓰기 산만하고,
   //  무엇을 고르는 건지도 헷갈립니다. 프레임은 인화물에만 적용됩니다.)
   return (
-    <div className="app">
+    // 촬영 화면만 뷰포트 높이에 고정(app--fit)합니다 — 뷰파인더가 남는 높이에 맞춰 줄어들어
+    // 촬영 버튼이 접힘선 아래로 떨어지지 않게. 나머지 화면은 문서 스크롤을 씁니다.
+    <div className={`app${phase === "camera" ? " app--fit" : ""}`}>
       {phase !== "admin" && (
         <header className="topbar no-print">
-          <button className="logo" onClick={reset} disabled={shooting}>
-            {settings.title}
-          </button>
-          {phase !== "welcome" && <span className="frame-name">{frame.name}</span>}
+          {phase === "camera" ? (
+            // 촬영 화면에서는 이름 대신 '처음으로' — 이름이 조용한 초기화 버튼이던 자리입니다.
+            <button className="ghost-button" onClick={reset} disabled={shooting}>
+              <Icon name="back" /> 처음으로
+            </button>
+          ) : (
+            <span className="logo">{settings.title}</span>
+          )}
+          <Steps phase={phase} />
         </header>
       )}
 
-      {error && (
+      {/* 환영 화면의 오류는 시작 버튼 옆(WelcomeScreen)에 띄웁니다. */}
+      {error && phase !== "welcome" && (
         <p className="error no-print" role="alert">
           {error}
         </p>
@@ -440,6 +463,7 @@ export default function App() {
           shootCount={totalShots}
           needed={needed}
           previews={previews}
+          error={error}
           onFrame={setFrameKey}
           onLayout={setLayoutKey}
           onCaption={setCaption}
@@ -465,7 +489,6 @@ export default function App() {
           ready={camera.ready}
           status={status}
           flash={flash}
-          resolution={camera.resolution}
           shots={shots}
           filters={FILTERS}
           filterKey={filterKey}
@@ -475,7 +498,6 @@ export default function App() {
           onZoom={setZoom}
           onFilter={setFilterKey}
           onShoot={() => void runSequence()}
-          onBack={reset}
         />
       )}
 
@@ -504,10 +526,13 @@ export default function App() {
           clip={clip}
           clipPending={clipPending}
           busy={composing}
+          printed={printed}
+          sample={sampleMode}
+          secondsLeft={idleSecondsLeft}
           onFrame={setFrameKey}
           onLayout={setLayoutKey}
           onCaption={setCaption}
-          onPrint={() => printImage(composite)}
+          onPrint={() => void print()}
           onShare={() => void shareImage(composite)}
           onSaveClip={() => clip && void shareClip(clip.blob, clip.ext)}
           onRestart={reset}
