@@ -23,20 +23,18 @@ const samplesFor = (count: number, ratio: number) => {
   return shots;
 };
 
-export const layoutPreviewKey = (key: string) => `L:${key}`;
 export const framePreviewKey = (key: string) => `F:${key}`;
 
 type Input = {
+  /** 미리보기를 만들 프레임들(프레임 화면·시작 화면 샘플용) */
   frames: Frame[];
-  layouts: Layout[];
-  frame: Frame;
   layout: Layout;
   title: string;
   tagline: string;
   caption: string;
 };
 
-export function usePrintPreviews({ frames, layouts, frame, layout, title, tagline, caption }: Input) {
+export function usePrintPreviews({ frames, layout, title, tagline, caption }: Input) {
   const [previews, setPreviews] = useState<Record<string, string>>({});
   // 문구는 한 글자마다 바뀌므로 잠시 기다렸다 다시 그립니다.
   const [settledCaption, setSettledCaption] = useState(caption);
@@ -48,10 +46,8 @@ export function usePrintPreviews({ frames, layouts, frame, layout, title, taglin
 
   useEffect(() => {
     let cancelled = false;
-    const jobs = [
-      ...layouts.map((item) => ({ key: layoutPreviewKey(item.key), frame, layout: item })),
-      ...frames.map((item) => ({ key: framePreviewKey(item.key), frame: item, layout })),
-    ];
+    // 고른 모양으로 프레임마다 한 장씩. (모양 고르기는 실루엣을 쓰므로 모양별 미리보기는 없습니다.)
+    const jobs = frames.map((item) => ({ key: framePreviewKey(item.key), frame: item, layout }));
 
     void (async () => {
       for (const job of jobs) {
@@ -79,7 +75,7 @@ export function usePrintPreviews({ frames, layouts, frame, layout, title, taglin
     return () => {
       cancelled = true;
     };
-  }, [frames, layouts, frame, layout, title, tagline, settledCaption]);
+  }, [frames, layout, title, tagline, settledCaption]);
 
   return previews;
 }

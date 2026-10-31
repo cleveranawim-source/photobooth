@@ -11,6 +11,8 @@ type Props = {
   settings: Settings;
   onSave: (settings: Settings) => void;
   onClose: () => void;
+  /** 카메라 없이 샘플 인화물로 완성 화면을 열어 봅니다(운영자 확인용). */
+  onSample: () => void;
 };
 
 const CAM_EDGES: { key: CamEdge; label: string }[] = [
@@ -19,7 +21,7 @@ const CAM_EDGES: { key: CamEdge; label: string }[] = [
   { key: "right", label: "오른쪽" },
 ];
 
-export function AdminScreen({ settings, onSave, onClose }: Props) {
+export function AdminScreen({ settings, onSave, onClose, onSample }: Props) {
   const [unlocked, setUnlocked] = useState(false);
   const [pinInput, setPinInput] = useState("");
   const [pinError, setPinError] = useState(false);
@@ -323,6 +325,9 @@ export function AdminScreen({ settings, onSave, onClose }: Props) {
             기본값으로 되돌리기
           </button>
         )}
+        <button className="ghost-button" onClick={onSample}>
+          샘플 인화물 보기
+        </button>
         <button className="ghost-button" onClick={onClose}>
           닫기
         </button>

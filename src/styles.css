@@ -211,11 +211,19 @@ button:focus-visible {
 
 /* ── 상단 바 ───────────────────────────────────────────────── */
 .topbar {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
   flex: 0 0 auto;
+}
+
+.topbar .ghost-button {
+  justify-self: start;
+}
+
+.topbar .step-dots {
+  justify-self: center;
 }
 
 .logo {
@@ -249,51 +257,197 @@ button:focus-visible {
   background: var(--ink);
 }
 
-/* ── 환영 화면 ─────────────────────────────────────────────── */
-.welcome {
+/* ── 시작 ──────────────────────────────────────────────────── */
+/* 고르는 건 아무것도 없습니다. 제목, 버튼 하나, 그리고 "이런 게 나와요" 샘플. */
+.start {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  text-align: center;
+  padding-bottom: 4vh;
+}
+
+.start .brand {
+  font-size: clamp(44px, 6vw, 72px);
+}
+
+.start-button {
+  margin-top: 10px;
+  padding: 26px 60px;
+  font-size: 36px;
+  min-height: 96px;
+  box-shadow: 0 16px 36px -14px rgba(255, 159, 28, 0.9);
+}
+
+.start-button svg {
+  width: 40px;
+  height: 40px;
+}
+
+.start-samples {
+  display: flex;
+  gap: 18px;
+  margin-top: 22px;
+  justify-content: center;
+}
+
+.start-samples img {
+  height: clamp(150px, 24vh, 220px);
+  width: auto;
+  border-radius: 6px;
+  border: 1px solid var(--edge);
+  box-shadow: 0 18px 30px -18px rgba(18, 58, 92, 0.5);
+}
+
+/* 고르는 화면 공통 질문 — 화면마다 하나 */
+.ask {
+  margin: 4px 0 18px;
+  font-size: clamp(28px, 3.4vw, 40px);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  text-align: center;
+}
+
+.ask small {
+  display: block;
+  margin-top: 4px;
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--sub);
+}
+
+/* ── 모양 ──────────────────────────────────────────────────── */
+.shape {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.shape-list {
   flex: 1;
   display: grid;
-  grid-template-columns: minmax(300px, 0.85fr) minmax(0, 1.15fr);
-  /* 왼쪽 열: 소개(1행) + 시작 버튼(2행). 오른쪽 열: 고르기(세 행 모두). */
-  grid-template-rows: auto auto 1fr;
-  column-gap: clamp(20px, 3vw, 46px);
-  row-gap: 14px;
-  align-items: start;
-  padding-top: clamp(8px, 2vh, 30px);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 22px;
+  align-content: center;
 }
 
-.welcome-options {
-  grid-column: 2;
-  grid-row: 1 / 4;
-}
-
-/* 시작 버튼은 미리보기 바로 아래 — 예전엔 오른쪽 목록 위를 덮는 스티키 바였습니다. */
-.start-block {
-  grid-column: 1;
-  grid-row: 2;
+.shape-card {
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  min-height: 360px;
+  padding: 28px 16px 24px;
+  border-radius: 24px;
+  border: 3px solid var(--edge);
+  background: var(--surface);
+  text-align: center;
 }
 
-.start-block .primary-button {
-  width: 100%;
-  padding: 18px 30px;
-  font-size: 21px;
+.shape-card:active {
+  border-color: var(--accent);
 }
 
-.start-block .text-link {
+.shape-card strong {
+  font-size: 24px;
+}
+
+.shape-card small {
+  margin-top: -8px;
+  font-size: 16px;
+  color: var(--sub);
+}
+
+.shape-card .shape-slot {
+  height: 180px;
+  color: var(--ink);
+}
+
+/* ── 프레임 ────────────────────────────────────────────────── */
+.frame-screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.frame-screen .error {
   align-self: center;
+  margin-bottom: 12px;
 }
 
-.welcome-hero {
+/* 큰 카드를 옆으로 넘기며 고릅니다. 고른 모양으로 그린 실제 인화물 미리보기. */
+.frame-scroll {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  overflow-x: auto;
+  padding: 8px 4px 16px;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.frame-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.frame-pick {
+  position: relative;
+  flex: 0 0 300px;
+  scroll-snap-align: center;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 14px;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 14px 16px;
+  border-radius: 24px;
+  border: 3px solid var(--edge);
+  background: var(--surface);
+  text-align: center;
 }
 
+.frame-pick:active {
+  border-color: var(--accent);
+}
+
+.frame-pick strong {
+  font-size: 22px;
+}
+
+.frame-pick small {
+  margin-top: -6px;
+  font-size: 15px;
+  color: var(--sub);
+}
+
+.frame-pick-thumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: min(400px, 46vh);
+}
+
+.frame-pick .layout-thumb {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.frame-pick .event-badge {
+  top: 12px;
+  right: 12px;
+  font-size: 14px;
+  padding: 4px 12px;
+}
+
+/* ── 공용 조각(여러 화면이 씀) ─────────────────────────────── */
 .brand {
   margin: 0;
   font-size: clamp(34px, 4.6vw, 56px);
@@ -314,123 +468,14 @@ button:focus-visible {
   color: var(--accent-ink);
 }
 
-/* 왼쪽 열의 큰 미리보기 — 고른 조합이 어떻게 인화되는지 바로 보여주고,
-   비어 있던 600px 남짓의 공간도 채웁니다. */
-.hero-preview {
-  display: flex;
-  justify-content: center;
-  width: 100%;
-  margin: 6px 0;
-}
-
-.hero-preview .layout-thumb {
-  max-width: min(100%, 300px);
-  max-height: 40vh;
-  width: auto;
-  height: auto;
-  border-radius: 8px;
-  border: 1px solid var(--edge);
-}
-
-.welcome-lead {
-  margin: 0;
-  max-width: 34ch;
-  font-size: 15px;
-  line-height: 1.65;
-  color: var(--sub);
-}
-
-.welcome-options {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  padding-bottom: 10px;
-  min-width: 0;
-}
-
 .text-link {
-  padding: 10px 14px;
-  min-height: 44px;
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--sub);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
-.option-group h2 {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  margin: 0 0 10px;
-  font-size: 16px;
-  font-weight: 800;
-  color: var(--ink);
-}
-
-.option-group h2 small {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--sub);
+  align-self: center;
 }
 
 .option-note {
   margin: 0;
   font-size: 13px;
   line-height: 1.5;
-  color: var(--sub);
-}
-
-/* 고른 카드의 체크 — 테두리 색만으로는 색각 이상·강한 조명에서 구분이 안 됩니다. */
-.pick-mark {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: var(--accent);
-  color: var(--on-accent);
-  font-size: 14px;
-  font-weight: 900;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.layout-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
-  gap: 10px;
-  align-items: start;
-}
-
-.layout-card {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  padding: 12px 8px 10px;
-  border-radius: var(--radius);
-  border: 2px solid var(--edge);
-  background: var(--surface);
-  text-align: center;
-}
-
-.layout-card.selected,
-.frame-card.selected {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(255, 159, 28, 0.22);
-}
-
-.layout-card strong {
-  font-size: 15px;
-}
-
-.layout-card small {
-  font-size: 13px;
-  line-height: 1.35;
   color: var(--sub);
 }
 
@@ -443,36 +488,18 @@ button:focus-visible {
   color: var(--sub);
 }
 
-.layout-card.selected .shape-slot {
-  color: var(--ink);
-}
-
 .layout-shape {
   height: 100%;
   width: auto;
   max-width: 100%;
 }
 
-/* 미리보기가 들어가는 고정 높이 칸. 용지 비율이 제각각이라(4×6 세로, 6×4 가로)
-   그냥 두면 카드 높이가 달라져 글씨 줄이 어긋납니다 — 칸 높이를 맞추고 그 안에서 맞춥니다. */
-.thumb-slot {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 116px;
-}
-
-/* 실제 합성물이 들어오는 자리. 프레임의 장식(테이프·반짝임·컷번호)이 보이려면
-   너무 작으면 안 되므로 넉넉히 잡습니다 — 여기서 고른 대로 인화되기 때문입니다. */
 .layout-thumb {
-  display: block;
+  max-width: min(100%, 300px);
+  max-height: 40vh;
   width: auto;
   height: auto;
-  max-width: 96px;
-  max-height: 100%;
-  border-radius: 4px;
-  /* 바탕이 밝은 프레임(소다 팝 등)은 흰 카드 위에서 경계가 사라지므로 테두리가 필요합니다. */
+  border-radius: 8px;
   border: 1px solid var(--edge);
 }
 
@@ -486,57 +513,6 @@ button:focus-visible {
   gap: 7px;
 }
 
-/* 인화 프레임 고르기 — 고른 레이아웃을 각 프레임 색으로 그려 인화물을 미리 보여줍니다.
-   15장을 격자로 펼치면 절반이 접힘선 아래로 숨어, 가로 한 줄로 넘겨 보게 합니다. */
-.frame-row {
-  display: flex;
-  gap: 10px;
-  overflow-x: auto;
-  /* 오른쪽 여백은 마스크 폭만큼 — 끝까지 넘겼을 때 마지막 카드가 흐려지지 않게. */
-  padding: 4px 44px 10px 4px;
-  margin: -4px -4px 0;
-  scroll-snap-type: x mandatory;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-  /* 오른쪽 가장자리를 살짝 흐려 "더 있다"는 신호를 줍니다. */
-  mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent);
-  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent);
-}
-
-.frame-row::-webkit-scrollbar {
-  display: none;
-}
-
-.frame-card {
-  position: relative;
-  flex: 0 0 150px;
-  scroll-snap-align: start;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
-  padding: 10px 8px 10px;
-  border-radius: var(--radius);
-  border: 2px solid var(--edge);
-  background: var(--surface);
-  text-align: center;
-}
-
-.frame-card strong {
-  font-size: 14px;
-  line-height: 1.25;
-}
-
-.frame-card small {
-  font-size: 13px;
-  line-height: 1.3;
-  color: var(--sub);
-}
-
-.frame-card .thumb-slot {
-  height: 112px;
-}
-
 /* 오늘 행사용으로 켠 로고 프레임 — 맨 앞에 오고 표식이 붙습니다. */
 .event-badge {
   position: absolute;
@@ -548,21 +524,6 @@ button:focus-visible {
   color: var(--on-accent);
   font-size: 12px;
   font-weight: 900;
-}
-
-.more-card {
-  flex-basis: 110px;
-  justify-content: center;
-  gap: 4px;
-  border-style: dashed;
-  color: var(--sub);
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.more-card b {
-  font-size: 26px;
-  color: var(--ink);
 }
 
 .frame-chip {
@@ -1573,44 +1534,16 @@ button:focus-visible {
 /* ── 세로 모드 ─────────────────────────────────────────────── */
 /* iPad 세로는 1024px 라 폭 기준 분기(900px 등)에 걸리지 않습니다 — 방향으로 판별합니다. */
 @media (orientation: portrait) {
-  .welcome,
   .result {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .welcome {
-    grid-template-rows: auto auto auto;
+  .shape-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .welcome-options {
-    grid-column: 1;
-    grid-row: 2;
-  }
-
-  /* 세로에서는 목록이 길어 시작 버튼이 바닥에 붙어 따라옵니다 — 반투명이 아니라
-     불투명 + 윗선이라 카드가 반쯤 비쳐 보이는 일이 없습니다. */
-  .start-block {
-    grid-row: 3;
-    position: sticky;
-    bottom: 0;
-    z-index: 5;
-    align-items: center;
-    padding: 12px 0 10px;
-    border-top: 1px solid var(--edge);
-    background: var(--paper);
-  }
-
-  .start-block .primary-button {
-    width: min(100%, 360px);
-  }
-
-  .welcome-hero {
-    align-items: center;
-    text-align: center;
-  }
-
-  .welcome-lead {
-    max-width: none;
+  .shape-card {
+    min-height: 300px;
   }
 
   .composite {

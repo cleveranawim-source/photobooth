@@ -18,13 +18,16 @@ import {
 import { buildTimelapse, startTimelapseCapture, type Clip } from "./lib/timelapse";
 import { useCamera } from "./hooks/useCamera";
 import { useIdleReset, useWakeLock } from "./hooks/useKiosk";
-import { usePrintPreviews } from "./hooks/usePrintPreviews";
-import { WelcomeScreen } from "./screens/WelcomeScreen";
+import { framePreviewKey, usePrintPreviews } from "./hooks/usePrintPreviews";
+import { StartScreen } from "./screens/StartScreen";
+import { ShapeScreen } from "./screens/ShapeScreen";
+import { FrameScreen } from "./screens/FrameScreen";
 import { CaptureScreen } from "./screens/CaptureScreen";
 import { SelectScreen } from "./screens/SelectScreen";
 import { ResultScreen } from "./screens/ResultScreen";
 import { AdminScreen } from "./screens/AdminScreen";
 import { Icon } from "./components/Icon";
+import { StepDots } from "./components/Steps";
 
 export default function App() {
   const [settings, setSettings] = useState<Settings>(loadSettings);
@@ -82,6 +85,11 @@ export default function App() {
   const filter = findFilter(filterKey);
   const frames = useMemo(() => visibleFrames(settings), [settings]);
   const layouts = useMemo(() => visibleLayouts(settings), [settings]);
+  // 행사 로고가 든 프레임이 맨 앞 — 오늘 행사용으로 켜 둔 것이 손님 눈에 먼저 들어오게.
+  const orderedFrames = useMemo(
+    () => [...frames.filter((item) => item.logo), ...frames.filter((item) => !item.logo)],
+    [frames],
+  );
   const needed = shotsNeeded(layout);
   const ratio = cellRatio(layout);
   // 레이아웃이 필요한 수보다 적게 찍을 수는 없습니다.
@@ -104,14 +112,17 @@ export default function App() {
   }, [maxZoom]);
 
   const previews = usePrintPreviews({
-    frames,
-    layouts,
-    frame,
+    frames: orderedFrames,
     layout,
     title: settings.title,
     tagline: settings.tagline,
     caption,
   });
+  // 시작 화면의 "이런 게 나와요" — 앞의 세 프레임.
+  const samples = orderedFrames
+    .slice(0, 3)
+    .map((item) => previews[framePreviewKey(item.key)])
+    .filter((src): src is string => !!src);
 
   // 인쇄 용지 크기는 레이아웃마다 달라 @page 를 동적으로 갈아 끼웁니다.
   useEffect(() => {
@@ -191,12 +202,18 @@ export default function App() {
 
   // 촬영 대기 화면도 초기화 대상입니다 — 손님이 여기까지 왔다가 그냥 가면 카메라가
   // 켜진 채(표시등 점등) 줌·필터가 다음 손님에게 남습니다. 촬영 시퀀스 중에는 걸지 않습니다.
+  // 고르는 화면(모양·프레임)에서 자리를 떠도 처음으로 돌아갑니다.
   const idleSecondsLeft = useIdleReset(
-    phase === "result" || phase === "swap" || (phase === "camera" && !shooting),
+    phase === "shape" ||
+      phase === "frame" ||
+      phase === "swap" ||
+      phase === "result" ||
+      (phase === "camera" && !shooting),
     settings.idleSeconds,
     reset,
   );
 
+  /** 프레임을 고른 순간 카메라를 켭니다. 실패하면 화면은 그대로이고 오류만 보입니다. */
   const startCamera = async () => {
     setError(null);
     setComposite(null);
@@ -209,6 +226,57 @@ export default function App() {
       setStatus("준비되면 촬영 버튼을 눌러주세요");
     }
   };
+
+  // ── 고르기 흐름: 시작 → 모양 → 프레임 → 촬영. 하나뿐인 단계는 건너뜁니다. ──
+  const goFrame = () => {
+    if (orderedFrames.length === 1) {
+      setFrameKey(orderedFrames[0].key);
+      void startCamera();
+      return;
+    }
+    setPhase("frame");
+  };
+  const goShape = () => {
+    setError(null);
+    if (layouts.length === 1) {
+      setLayoutKey(layouts[0].key);
+      goFrame();
+      return;
+    }
+    setPhase("shape");
+  };
+  const pickShape = (key: string) => {
+    setLayoutKey(key);
+    goFrame();
+  };
+  const pickFrame = (key: string) => {
+    setFrameKey(key);
+    void startCamera();
+  };
+
+  // 상단 왼쪽 되돌아가기 — 어디로 가는지가 곧 이름입니다. 하나뿐이라 건너뛴 단계로는 안 돌아갑니다.
+  const back = (() => {
+    const toShape = { label: "모양 다시", go: () => setPhase("shape") };
+    const toStart = { label: "처음으로", go: reset };
+    const beforeFrame = layouts.length === 1 ? toStart : toShape;
+    if (phase === "shape") return toStart;
+    if (phase === "frame") return beforeFrame;
+    if (phase === "camera") {
+      const target =
+        orderedFrames.length === 1 ? beforeFrame : { label: "프레임 다시", go: () => setPhase("frame") };
+      return {
+        label: target.label,
+        go: () => {
+          // 찍은 사진은 버립니다 — 다시 들어오면 처음부터 찍습니다.
+          setShots([]);
+          setShotIndex(0);
+          setError(null);
+          target.go();
+        },
+      };
+    }
+    return null;
+  })();
 
   // 지금 조합으로 합성한 적이 있는지 판별하는 서명. 결과 화면에서 무엇이든 바뀌면 달라집니다.
   const composeSignature = [
@@ -428,46 +496,48 @@ export default function App() {
     // 촬영 화면만 뷰포트 높이에 고정(app--fit)합니다 — 뷰파인더가 남는 높이에 맞춰 줄어들어
     // 촬영 버튼이 접힘선 아래로 떨어지지 않게. 나머지 화면은 문서 스크롤을 씁니다.
     <div className={`app${phase === "camera" ? " app--fit" : ""}`}>
-      {phase !== "admin" && (
+      {/* 상단 바: 시작·관리자에는 없고, 고르는 화면에는 되돌아가기 + 점 셋, 그 뒤로는 이름만. */}
+      {back && (
         <header className="topbar no-print">
-          {phase === "camera" ? (
-            // 촬영 화면에서는 이름 대신 '처음으로' — 이름이 조용한 초기화 버튼이던 자리입니다.
-            <button className="ghost-button" onClick={reset} disabled={shooting}>
-              <Icon name="back" /> 처음으로
-            </button>
-          ) : (
-            <span className="logo">{settings.title}</span>
-          )}
+          <button className="ghost-button" onClick={back.go} disabled={shooting}>
+            <Icon name="back" /> {back.label}
+          </button>
+          <StepDots current={phase === "shape" ? 1 : phase === "frame" ? 2 : 3} />
+          <span />
+        </header>
+      )}
+      {(phase === "swap" || phase === "result") && (
+        <header className="topbar no-print">
+          <span className="logo">{settings.title}</span>
         </header>
       )}
 
-      {/* 환영 화면의 오류는 시작 버튼 옆(WelcomeScreen)에 띄웁니다. */}
-      {error && phase !== "start" && (
+      {/* 프레임 화면의 오류(카메라)는 그 화면 안에 띄웁니다. */}
+      {error && phase !== "start" && phase !== "frame" && (
         <p className="error no-print" role="alert">
           {error}
         </p>
       )}
 
       {phase === "start" && (
-        <WelcomeScreen
+        <StartScreen
           title={settings.title}
           tagline={settings.tagline}
-          frame={frame}
-          frames={frames}
-          layouts={layouts}
-          frameKey={frameKey}
-          layoutKey={layoutKey}
-          caption={caption}
-          shootCount={totalShots}
-          needed={needed}
+          samples={samples}
+          onStart={goShape}
+          onAdmin={() => setPhase("admin")}
+        />
+      )}
+
+      {phase === "shape" && <ShapeScreen layouts={layouts} onPick={pickShape} />}
+
+      {phase === "frame" && (
+        <FrameScreen
+          frames={orderedFrames}
+          layout={layout}
           previews={previews}
           error={error}
-          onFrame={setFrameKey}
-          onLayout={setLayoutKey}
-          onCaption={setCaption}
-          onStart={() => void startCamera()}
-          onSample={() => void openSample()}
-          onAdmin={() => setPhase("admin")}
+          onPick={pickFrame}
         />
       )}
 
@@ -538,7 +608,12 @@ export default function App() {
       )}
 
       {phase === "admin" && (
-        <AdminScreen settings={settings} onSave={applySettings} onClose={() => setPhase("start")} />
+        <AdminScreen
+          settings={settings}
+          onSave={applySettings}
+          onClose={() => setPhase("start")}
+          onSample={() => void openSample()}
+        />
       )}
 
       {/* 인쇄 전용 — 관리자가 정한 매수만큼 페이지를 만듭니다(브라우저 인쇄 대화상자의 매수와 별개). */}
