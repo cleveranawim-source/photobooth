@@ -10,6 +10,7 @@ dev 서버(`npm run dev`)가 떠 있어야 합니다. chromium 의 가짜 카메
   --deny  카메라 권한 거부 — 프레임 화면에 '선생님을 불러주세요' 오류가 보여야 함
   --band  가로 4컷 띠 — 여분 칸이 조각 오른쪽에 붙고 활성 칸이 가로로 밀리는지(스크린샷)
   --exact 촬영 장수 = 칸 수 — 바꾸기 화면 없이 바로 완성
+  --idle  모양 화면에서 자리를 뜨면 idleSeconds 뒤 시작으로, 이어서 관리자 화면(보정 선택·샘플 보기)
 실패하면 어느 검사가 깨졌는지 출력하고 종료 코드 1.
 """
 
@@ -230,6 +231,40 @@ async def run_exact(browser, url, out, tag, width, height):
     return checks
 
 
+async def run_idle_admin(browser, url, out, tag, width, height):
+    """고르는 화면 유휴 초기화 + 관리자 화면(보정 선택 칩, 샘플 인화물 보기)."""
+    checks = Checks(f"{tag}-idle")
+    context = await browser.new_context(viewport={"width": width, "height": height})
+    errors = []
+    try:
+        page, errors = await open_app(context, url, {"idleSeconds": 20})
+        await page.click(".start-button")
+        await page.wait_for_selector(".shape", timeout=5000)
+        await page.wait_for_selector(".start", timeout=26000)
+        checks.expect(await page.locator(".shape").count() == 0, "유휴 초기화 뒤에도 모양 화면이 남음")
+        # 관리자: 제목 2초 길게 누르기 → PIN
+        box = await page.locator("h1.brand").bounding_box()
+        await page.mouse.move(box["x"] + 20, box["y"] + 20)
+        await page.mouse.down()
+        await page.wait_for_timeout(2200)
+        await page.mouse.up()
+        await page.wait_for_selector(".admin-gate", timeout=5000)
+        await page.keyboard.type("0000")
+        await page.wait_for_selector(".admin", timeout=5000)
+        checks.expect(
+            await page.locator(".admin:has-text('손님에게 보여줄 보정')").count() == 1, "관리자에 보정 선택이 없음"
+        )
+        await snapshot(page, out, checks, "admin", one_screen=False)
+        await page.click("button:has-text('샘플 인화물 보기')")
+        await page.wait_for_selector(".result .sample-badge", timeout=15000)
+        await snapshot(page, out, checks, "sample-result")
+    except Exception as caught:  # noqa: BLE001
+        checks.failures.append(f"[{tag}-idle] 흐름 중단: {type(caught).__name__}: {str(caught)[:160]}")
+    checks.expect(not errors, f"콘솔 오류: {errors[:3]}")
+    await context.close()
+    return checks
+
+
 async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("out")
@@ -238,6 +273,7 @@ async def main():
     parser.add_argument("--deny", action="store_true")
     parser.add_argument("--band", action="store_true")
     parser.add_argument("--exact", action="store_true")
+    parser.add_argument("--idle", action="store_true")
     args = parser.parse_args()
     out = pathlib.Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -250,6 +286,8 @@ async def main():
         runner, launch_args = run_band, FAKE_CAMERA + FAKE_PERMISSION
     elif args.exact:
         runner, launch_args = run_exact, FAKE_CAMERA + FAKE_PERMISSION
+    elif args.idle:
+        runner, launch_args = run_idle_admin, FAKE_CAMERA + FAKE_PERMISSION
     else:
         runner, launch_args = run_default, FAKE_CAMERA + FAKE_PERMISSION
 

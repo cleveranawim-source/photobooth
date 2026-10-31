@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import type { CamEdge, Settings } from "../types";
 import { FRAMES } from "../config/frames";
+import { FILTERS } from "../config/filters";
 import { LAYOUTS, findLayout, shotsNeeded } from "../config/layouts";
 import { DEFAULT_SETTINGS } from "../lib/settings";
 import { Icon } from "../components/Icon";
@@ -194,6 +195,9 @@ export function AdminScreen({ settings, onSave, onClose, onSample }: Props) {
           </label>
         </div>
         <p className="admin-note">
+          촬영 컷 수를 칸 수와 같게 두면 &lsquo;바꾸기&rsquo; 화면이 사라지고 바로 완성으로 가요.
+        </p>
+        <p className="admin-note">
           피부 보정은 결과물에만 들어갑니다 — 촬영 화면에서는 보이지 않아요. 볼·이마의 결만
           정리하고 눈매와 머리카락은 그대로 둡니다. 0 이면 끕니다. 너무 올리면 인화했을 때
           얼굴이 밋밋해 보이니 40 안팎을 권합니다.
@@ -288,6 +292,25 @@ export function AdminScreen({ settings, onSave, onClose, onSample }: Props) {
             ))}
           </select>
         </label>
+      </section>
+
+      <section className="admin-group">
+        <h3>손님에게 보여줄 보정</h3>
+        <p className="admin-note">
+          아무것도 고르지 않으면 원본·맑게·따뜻한 날·흑백 넷을 보여줍니다. 많이 켤수록 촬영 화면이
+          복잡해져요.
+        </p>
+        <div className="chip-list tight">
+          {FILTERS.map((item) => (
+            <button
+              key={item.key}
+              className={`pill${draft.enabledFilters.includes(item.key) ? " selected" : ""}`}
+              onClick={() => patch({ enabledFilters: toggleIn(draft.enabledFilters, item.key) })}
+            >
+              {item.name}
+            </button>
+          ))}
+        </div>
       </section>
 
       <section className="admin-group">

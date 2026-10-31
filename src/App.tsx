@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Phase, Settings } from "./types";
-import { FILTERS, findFilter } from "./config/filters";
+import { findFilter } from "./config/filters";
 import { findFrame } from "./config/frames";
 import { cellRatio, findLayout, shotsNeeded } from "./config/layouts";
 import { ensureAudio, playBeep, playFanfare, playShutter } from "./lib/audio";
@@ -12,6 +12,7 @@ import { printImage, shareClip, shareImage } from "./lib/share";
 import {
   loadSettings,
   saveSettings,
+  visibleFilters,
   visibleFrames,
   visibleLayouts,
 } from "./lib/settings";
@@ -38,7 +39,7 @@ export default function App() {
   const [phase, setPhase] = useState<Phase>("start");
   const [frameKey, setFrameKey] = useState(settings.defaultFrame);
   const [layoutKey, setLayoutKey] = useState(settings.defaultLayout);
-  const [filterKey, setFilterKey] = useState("none");
+  const [filterKey, setFilterKey] = useState(() => visibleFilters(settings)[0]?.key ?? "none");
   // 핀치 줌 — 뷰파인더와 촬영이 같은 값을 써야 해서 여기서 들고 내려보냅니다.
   const [zoom, setZoom] = useState(1);
   const [caption, setCaption] = useState(settings.caption);
@@ -92,6 +93,11 @@ export default function App() {
   const filter = findFilter(filterKey);
   const frames = useMemo(() => visibleFrames(settings), [settings]);
   const layouts = useMemo(() => visibleLayouts(settings), [settings]);
+  const filters = useMemo(() => visibleFilters(settings), [settings]);
+  // 관리자가 목록을 바꿔 지금 보정이 빠지면 목록의 첫 것으로 되돌립니다.
+  useEffect(() => {
+    if (!filters.some((item) => item.key === filterKey)) setFilterKey(filters[0]?.key ?? "none");
+  }, [filters, filterKey]);
   // 행사 로고가 든 프레임이 맨 앞 — 오늘 행사용으로 켜 둔 것이 손님 눈에 먼저 들어오게.
   const orderedFrames = useMemo(
     () => [...frames.filter((item) => item.logo), ...frames.filter((item) => !item.logo)],
@@ -597,7 +603,7 @@ export default function App() {
           status={status}
           flash={flash}
           shots={shots}
-          filters={FILTERS}
+          filters={filters}
           filterKey={filterKey}
           film={filter.film}
           zoom={zoom}
