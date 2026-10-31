@@ -5,6 +5,7 @@ import { LAYOUTS, findLayout, shotsNeeded } from "../config/layouts";
 import { DEFAULT_SETTINGS } from "../lib/settings";
 import { Icon } from "../components/Icon";
 import { FrameSwatch } from "../components/Previews";
+import { useIdleReset } from "../hooks/useKiosk";
 
 type Props = {
   settings: Settings;
@@ -24,6 +25,11 @@ export function AdminScreen({ settings, onSave, onClose }: Props) {
   const [pinError, setPinError] = useState(false);
   const [draft, setDraft] = useState<Settings>(settings);
   const [saved, setSaved] = useState(false);
+
+  // PIN 화면을 열어 둔 채 자리를 뜨면 키오스크가 거기서 멈춥니다 — 손님이 제목을 길게 눌러
+  // 우연히 들어올 수도 있어서, 방치되면 환영 화면으로 돌려보냅니다. 잠금을 푼 뒤에는
+  // 설정을 고치는 중일 수 있으니 걸지 않습니다.
+  useIdleReset(!unlocked, settings.idleSeconds, onClose);
 
   const patch = (changes: Partial<Settings>) => {
     setDraft((previous) => ({ ...previous, ...changes }));

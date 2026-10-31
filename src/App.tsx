@@ -67,6 +67,13 @@ export default function App() {
   const camera = useCamera();
   useWakeLock();
 
+  // 카메라 권한 거부·장치 점유 등은 useCamera 가 메시지를 만들지만, 여기서 화면에 띄우지
+  // 않으면 '촬영 시작'을 눌러도 아무 반응이 없는 상태가 됩니다(실제로 그랬습니다).
+  const cameraError = camera.error;
+  useEffect(() => {
+    if (cameraError) setError(cameraError);
+  }, [cameraError]);
+
   const frame = findFrame(frameKey);
   const layout = findLayout(layoutKey);
   const filter = findFilter(filterKey);
