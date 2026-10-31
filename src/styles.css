@@ -226,44 +226,27 @@ button:focus-visible {
   padding: 6px 0;
 }
 
-/* 진행 단계 — 실제 순서라 번호가 정보입니다. */
-.steps {
+/* 고르는 화면의 진행 점 — 모양·프레임·촬영 세 단계 */
+.step-dots {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
   margin: 0;
   padding: 0;
   list-style: none;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--sub);
 }
 
-.steps li {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 6px 11px;
-  border-radius: 999px;
-  white-space: nowrap;
+.step-dots li {
+  width: 10px;
+  height: 10px;
+  border-radius: 5px;
+  background: var(--mat);
+  transition: width 0.2s ease, background-color 0.2s ease;
 }
 
-.steps li + li::before {
-  content: "";
-  width: 12px;
-  height: 2px;
-  margin-right: 8px;
-  border-radius: 2px;
-  background: var(--edge);
-}
-
-.steps li.on {
+.step-dots li.on {
+  width: 28px;
   background: var(--ink);
-  color: #fff;
-}
-
-.steps-num {
-  font-variant-numeric: tabular-nums;
 }
 
 /* ── 환영 화면 ─────────────────────────────────────────────── */
@@ -1689,4 +1672,78 @@ button:focus-visible {
     break-after: auto;
     page-break-after: auto;
   }
+}
+
+/* ── 인화물 무대 ───────────────────────────────────────────── */
+/* 촬영·바꾸기 화면의 바탕. 안쪽(.print-stage-content)은 조각 좌표계(300dpi px)로 그려지고
+   변환 하나로 화면에 놓입니다 — lib/stageGeometry 의 40% 규칙. 활성 칸이 바뀌면 변환만
+   바뀌어 필름이 한 칸씩 감기듯 밀립니다. */
+.print-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.print-stage-content {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.stage-tile {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  border-radius: 6px;
+  box-shadow: 0 30px 60px -24px rgba(18, 58, 92, 0.45);
+}
+
+/* 여분 칸 — 조각 바깥에 같은 크기로. 장식 없이 바탕색과 표식만. */
+.stage-extra {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  font-weight: 800;
+  border: 6px solid rgba(18, 58, 92, 0.12);
+}
+
+.stage-extra img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* 칸마다 올리는 투명 버튼(바꾸기 화면) */
+.stage-hit {
+  position: absolute;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+.stage-hit:focus-visible {
+  outline: 10px solid var(--accent);
+  outline-offset: 4px;
+}
+
+.stage-selected {
+  outline: 10px solid var(--ink);
+  outline-offset: 4px;
+}
+
+/* 활성 칸 — 내 얼굴이 들어갈 자리. 테두리는 조각 단위라 배율과 함께 줄어듭니다. */
+.stage-active {
+  position: absolute;
+  overflow: hidden;
+  border: 6px solid var(--accent);
+  box-shadow: 0 0 0 10px rgba(255, 159, 28, 0.3);
 }

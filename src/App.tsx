@@ -25,7 +25,6 @@ import { SelectScreen } from "./screens/SelectScreen";
 import { ResultScreen } from "./screens/ResultScreen";
 import { AdminScreen } from "./screens/AdminScreen";
 import { Icon } from "./components/Icon";
-import { Steps } from "./components/Steps";
 
 export default function App() {
   const [settings, setSettings] = useState<Settings>(loadSettings);
@@ -439,7 +438,6 @@ export default function App() {
           ) : (
             <span className="logo">{settings.title}</span>
           )}
-          <Steps phase={phase} />
         </header>
       )}
 
