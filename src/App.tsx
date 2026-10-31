@@ -19,13 +19,13 @@ import { buildTimelapse, startTimelapseCapture, type Clip } from "./lib/timelaps
 import { useCamera } from "./hooks/useCamera";
 import { useIdleReset, useWakeLock } from "./hooks/useKiosk";
 import { useTileImage } from "./hooks/useTileImage";
-import { captureSlots } from "./lib/stageGeometry";
+import { captureSlots, swapSlots } from "./lib/stageGeometry";
 import { framePreviewKey, usePrintPreviews } from "./hooks/usePrintPreviews";
 import { StartScreen } from "./screens/StartScreen";
 import { ShapeScreen } from "./screens/ShapeScreen";
 import { FrameScreen } from "./screens/FrameScreen";
 import { CaptureScreen } from "./screens/CaptureScreen";
-import { SelectScreen } from "./screens/SelectScreen";
+import { SwapScreen } from "./screens/SwapScreen";
 import { ResultScreen } from "./screens/ResultScreen";
 import { AdminScreen } from "./screens/AdminScreen";
 import { Icon } from "./components/Icon";
@@ -44,7 +44,10 @@ export default function App() {
   const [caption, setCaption] = useState(settings.caption);
 
   const [shots, setShots] = useState<string[]>([]);
-  const [picked, setPicked] = useState<number[]>([]);
+  /** 찍은 순서를 칸에 놓는 순서로 — shots 인덱스 배열. 앞 needed 개가 조각 칸, 나머지가 여분. */
+  const [order, setOrder] = useState<number[]>([]);
+  /** 바꾸기 화면에서 고른 칸 */
+  const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
   const [composing, setComposing] = useState(false);
   const [composite, setComposite] = useState<string | null>(null);
   /**
@@ -104,7 +107,12 @@ export default function App() {
   // ── 촬영 무대 ──
   // 촬영 칸 전부(조각 칸 + 여분)와, 찍힌 사진이 들어간 조각 그림. 그림은 합성기가 다시 그립니다.
   const slots = useMemo(() => captureSlots(layout, totalShots), [layout, totalShots]);
-  const tileImages = useMemo(() => shots.slice(0, needed), [shots, needed]);
+  const orderedShots = useMemo(() => order.map((index) => shots[index]), [order, shots]);
+  // 촬영 중엔 찍은 순서대로, 바꾸기 화면에선 바꾼 순서대로 조각 칸을 채웁니다.
+  const tileImages = useMemo(
+    () => (phase === "swap" ? orderedShots : shots).slice(0, needed),
+    [phase, orderedShots, shots, needed],
+  );
   const tileSrc = useTileImage({
     frame,
     layout,
@@ -212,7 +220,8 @@ export default function App() {
     setClip(null);
     setClipPending(false);
     setShots([]);
-    setPicked([]);
+    setOrder([]);
+    setSelectedSlot(null);
     setShotIndex(0);
     setError(null);
     setPrinted(false);
@@ -238,7 +247,8 @@ export default function App() {
     setComposite(null);
     setPrinted(false);
     setShots([]);
-    setPicked([]);
+    setOrder([]);
+    setSelectedSlot(null);
     setShotIndex(0);
     if (await camera.start()) {
       setPhase("camera");
@@ -369,7 +379,8 @@ export default function App() {
     setError(null);
     setShots([]);
     setShotIndex(0);
-    setPicked([]);
+    setOrder([]);
+    setSelectedSlot(null);
     setClip(null);
     setClipPending(false);
     setPrinted(false);
@@ -424,6 +435,8 @@ export default function App() {
       // 스트림은 끄지 않고 유지 — '다시 찍기' 때 권한 팝업이 다시 뜨지 않습니다.
       camera.setReady(false);
       if (frames.length > needed) {
+        // 여분이 있으면 바꾸기 화면 — 먼저 찍은 넷이 이미 칸에 들어간 상태로 시작합니다.
+        setOrder(frames.map((_, index) => index));
         setPhase("swap");
         return;
       }
@@ -444,32 +457,35 @@ export default function App() {
     }
   };
 
-  const togglePick = (index: number) => {
-    setPicked((previous) => {
-      if (previous.includes(index)) return previous.filter((item) => item !== index);
-      if (previous.length >= needed) return previous;
-      return [...previous, index];
-    });
+  /** 바꾸기: 처음 누르면 고르고, 다른 칸을 누르면 둘의 자리를 바꿉니다. 같은 칸을 다시 누르면 풉니다. */
+  const tapSlot = (index: number) => {
+    if (selectedSlot === null) {
+      setSelectedSlot(index);
+      return;
+    }
+    if (selectedSlot === index) {
+      setSelectedSlot(null);
+      return;
+    }
+    setOrder((previous) => swapSlots(previous, selectedSlot, index));
+    setSelectedSlot(null);
   };
 
-  const finishSelect = async () => {
-    if (picked.length !== needed || composing) return;
+  const finishSwap = async () => {
+    if (composing) return;
     // 합성 중 초기화되면 완료 시점에 결과 화면으로 되돌아가지 않도록 세대를 확인합니다.
     const gen = runGenRef.current;
     setComposing(true);
     setError(null);
     try {
-      // 고른 순서가 앞, 안 고른 컷은 뒤 — 결과 화면에서 더 많은 칸이 필요한 레이아웃으로
-      // 바꿔도 남은 사진으로 채울 수 있게 해 둡니다.
-      const ordered = [
-        ...picked.map((index) => shots[index]),
-        ...shots.filter((_, index) => !picked.includes(index)),
-      ];
+      // 칸 순서가 앞, 여분은 뒤 — 완성 화면에서 더 많은 칸이 필요한 모양으로 바꿔도
+      // 여분으로 채울 수 있게 전부 넘깁니다.
       setSampleMode(false);
-      setSourceShots(ordered);
-      const result = await compose(ordered.slice(0, needed));
+      setSourceShots(orderedShots);
+      const result = await compose(orderedShots.slice(0, needed));
       if (runGenRef.current !== gen) return;
       setComposite(result);
+      setSelectedSlot(null);
       setPhase("result");
     } catch (caught) {
       if (runGenRef.current === gen)
@@ -593,15 +609,16 @@ export default function App() {
       )}
 
       {phase === "swap" && (
-        <SelectScreen
-          shots={shots}
-          picked={picked}
-          needed={needed}
-          ratio={ratio}
+        <SwapScreen
+          layout={layout}
+          frame={frame}
+          tileSrc={tileSrc}
+          slots={slots}
+          shots={orderedShots}
+          selected={selectedSlot}
           busy={composing}
-          onToggle={togglePick}
-          onDone={() => void finishSelect()}
-          onRetake={() => void startCamera()}
+          onTap={tapSlot}
+          onDone={() => void finishSwap()}
         />
       )}
 

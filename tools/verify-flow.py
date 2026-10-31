@@ -9,6 +9,7 @@ dev 서버(`npm run dev`)가 떠 있어야 합니다. chromium 의 가짜 카메
   --skip  관리자가 모양·프레임을 하나씩만 켠 경우 — 시작 버튼 뒤 바로 촬영 화면
   --deny  카메라 권한 거부 — 프레임 화면에 '선생님을 불러주세요' 오류가 보여야 함
   --band  가로 4컷 띠 — 여분 칸이 조각 오른쪽에 붙고 활성 칸이 가로로 밀리는지(스크린샷)
+  --exact 촬영 장수 = 칸 수 — 바꾸기 화면 없이 바로 완성
 실패하면 어느 검사가 깨졌는지 출력하고 종료 코드 1.
 """
 
@@ -72,8 +73,8 @@ async def open_app(context, url, settings):
     return page, errors
 
 
-# 촬영이 끝나면 가는 화면. (Task 6 에서 .swap 으로 좁힙니다.)
-AFTER_SHOOT = ".swap, .select, .result"
+# 촬영이 끝나면 가는 화면 — 여분이 있으면 바꾸기, 없으면 완성.
+AFTER_SHOOT = ".swap, .result"
 
 
 async def choose_to_camera(page, out, checks, shape="세로 4컷"):
@@ -108,6 +109,33 @@ async def shoot(page, out, checks, name="countdown"):
     await page.wait_for_selector(AFTER_SHOOT, timeout=60000)
 
 
+async def swap_and_finish(page, out, checks):
+    """바꾸기(1번째 칸 ↔ 여분 1) → 완성 → 인쇄 → 자동 초기화 예고까지."""
+    await page.wait_for_selector(".swap", timeout=5000)
+    await page.wait_for_timeout(500)  # 조각 그림 합성
+    await snapshot(page, out, checks, "swap")
+    hits = page.locator(".stage-hit")
+    checks.expect(await hits.count() == 6, f"바꾸기 화면 칸 수 {await hits.count()} ≠ 6")
+    first_extra = page.locator(".stage-extra img").first
+    before = await first_extra.get_attribute("src")
+    await hits.nth(0).click()
+    await hits.nth(4).click()
+    await page.wait_for_timeout(700)
+    after = await first_extra.get_attribute("src")
+    checks.expect(before != after, "1번째 칸과 여분 1 이 바뀌지 않음")
+    await snapshot(page, out, checks, "swap-after")
+    await page.click("button:has-text('이걸로 할래요')")
+    await page.wait_for_selector(".result", timeout=15000)
+    await page.wait_for_timeout(400)
+    await snapshot(page, out, checks, "result")
+    await page.click("button:has-text('인쇄하기')")
+    await page.wait_for_selector(".done-toast", timeout=5000)
+    await snapshot(page, out, checks, "result-printed")
+    await page.wait_for_selector(".idle-note", timeout=25000)
+    await page.wait_for_timeout(1100)
+    await snapshot(page, out, checks, "result-idle")
+
+
 async def run_default(browser, url, out, tag, width, height):
     checks = Checks(tag)
     context = await browser.new_context(viewport={"width": width, "height": height})
@@ -116,6 +144,7 @@ async def run_default(browser, url, out, tag, width, height):
         page, errors = await open_app(context, url, {})
         await choose_to_camera(page, out, checks)
         await shoot(page, out, checks)
+        await swap_and_finish(page, out, checks)
     except Exception as caught:  # noqa: BLE001 — 어느 단계에서 멈췄는지 보고합니다
         checks.failures.append(f"[{tag}] 흐름 중단: {type(caught).__name__}: {str(caught)[:160]}")
     checks.expect(not errors, f"콘솔 오류: {errors[:3]}")
@@ -182,6 +211,25 @@ async def run_band(browser, url, out, tag, width, height):
     return checks
 
 
+async def run_exact(browser, url, out, tag, width, height):
+    """촬영 장수가 칸 수와 같으면 바꾸기 화면을 건너뛰고 바로 완성."""
+    checks = Checks(f"{tag}-exact")
+    context = await browser.new_context(viewport={"width": width, "height": height})
+    errors = []
+    try:
+        page, errors = await open_app(context, url, {"shootCount": 4})
+        await choose_to_camera(page, out, checks)
+        await page.click("button:has-text('장 찍기')")
+        await page.wait_for_selector(".result", timeout=60000)
+        checks.expect(await page.locator(".swap").count() == 0, "바꾸기 화면이 떴음")
+        await snapshot(page, out, checks, "exact-result")
+    except Exception as caught:  # noqa: BLE001
+        checks.failures.append(f"[{tag}-exact] 흐름 중단: {type(caught).__name__}: {str(caught)[:160]}")
+    checks.expect(not errors, f"콘솔 오류: {errors[:3]}")
+    await context.close()
+    return checks
+
+
 async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("out")
@@ -189,6 +237,7 @@ async def main():
     parser.add_argument("--skip", action="store_true")
     parser.add_argument("--deny", action="store_true")
     parser.add_argument("--band", action="store_true")
+    parser.add_argument("--exact", action="store_true")
     args = parser.parse_args()
     out = pathlib.Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -199,6 +248,8 @@ async def main():
         runner, launch_args = run_skip, FAKE_CAMERA + FAKE_PERMISSION
     elif args.band:
         runner, launch_args = run_band, FAKE_CAMERA + FAKE_PERMISSION
+    elif args.exact:
+        runner, launch_args = run_exact, FAKE_CAMERA + FAKE_PERMISSION
     else:
         runner, launch_args = run_default, FAKE_CAMERA + FAKE_PERMISSION
 

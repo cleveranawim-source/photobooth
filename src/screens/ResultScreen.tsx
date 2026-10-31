@@ -62,7 +62,7 @@ export function ResultScreen({
     <button className={`action-button${printed ? "" : " print-action"}`} onClick={onPrint}>
       <Icon name="print" />
       <span>
-        <strong>{printed ? "한 장 더 인쇄" : `사진 인쇄하기${copies > 1 ? ` (${copies}장)` : ""}`}</strong>
+        <strong>{printed ? "한 장 더 인쇄" : `인쇄하기${copies > 1 ? ` (${copies}장)` : ""}`}</strong>
         <small>{printed ? "같은 사진을 한 번 더" : "프린터 고르는 창이 열려요"}</small>
       </span>
     </button>
@@ -72,7 +72,7 @@ export function ResultScreen({
     <button className={`action-button${printed ? " print-action" : ""}`} onClick={onShare}>
       <Icon name="download" />
       <span>
-        <strong>iPad에 저장·공유</strong>
+        <strong>내 폰에 저장</strong>
         <small>사진 앱 또는 AirDrop</small>
       </span>
     </button>
@@ -138,12 +138,12 @@ export function ResultScreen({
           aria-expanded={dressing}
           onClick={() => setDressing((previous) => !previous)}
         >
-          <Icon name="sparkle" /> 다르게 꾸며보기
+          <Icon name="sparkle" /> 문구·프레임 바꾸기
           <small>프레임·모양·문구만 바꿔요</small>
         </button>
 
         <button className="ghost-button restart" onClick={onRestart}>
-          <Icon name="redo" /> 새로 찍기
+          <Icon name="redo" /> 처음부터 다시
         </button>
 
         {/* 조용히 사라지던 90초 — 마지막 구간엔 남은 시간을 보여주고 누르면 계속되게 합니다. */}

@@ -890,11 +890,51 @@ button:focus-visible {
   color: var(--sub);
 }
 
-/* ── 고르기 화면 ───────────────────────────────────────────── */
-/* 긴 화면(환영·고르기·관리자)은 문서 전체가 스크롤됩니다. .app 이 min-height 로 늘어나므로
+/* ── 바꾸기 ────────────────────────────────────────────────── */
+/* 여분이 있을 때만. 촬영 화면과 같은 무대에 칸마다 투명 버튼이 올라가고,
+   오른쪽에는 질문 하나와 버튼 하나. 높이는 .app--fit 으로 뷰포트에 고정. */
+.swap {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 28px;
+  min-height: 0;
+}
+
+.swap-stage {
+  position: relative;
+  min-height: 0;
+}
+
+.swap-side {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+.swap-side .ask {
+  text-align: left;
+  margin: 0;
+  font-size: clamp(24px, 2.6vw, 30px);
+}
+
+.swap-side .ask small {
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.swap-hint {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--accent-ink);
+}
+
+/* 긴 화면(완성·관리자)은 문서 전체가 스크롤됩니다. .app 이 min-height 로 늘어나므로
    안쪽 패널에 overflow-y 를 걸어도 스크롤 컨테이너가 생기지 않습니다 — iOS 에서는
    높이를 고정해 안쪽만 스크롤시키는 쪽이 키보드가 뜰 때 더 잘 깨져서 문서 스크롤로 둡니다. */
-.select,
 .result,
 .admin {
   flex: 1;
@@ -917,91 +957,12 @@ button:focus-visible {
   color: var(--sub);
 }
 
-/* 몇 장 골랐는지 — 비활성 버튼 글자에만 있던 정보를 막대로 보여줍니다. */
-.pick-progress {
-  display: flex;
-  gap: 6px;
-  justify-content: center;
-  margin-top: 10px;
-}
-
-.pick-progress i {
-  width: 42px;
-  height: 8px;
-  border-radius: 4px;
-  background: var(--mat);
-}
-
-.pick-progress i.on {
-  background: var(--accent);
-}
-
 .admin-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
   text-align: left;
-}
-
-/* 어느 컷이 잘 나왔는지 판단하는 화면입니다. auto-fit 으로 두면 가로가 넓을 때
-   여섯 장이 한 줄에 몰려 한 장이 200×120 밖에 안 됐습니다 — 열 수를 묶어 크게 봅니다. */
-.shot-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
-  width: min(100%, 1020px);
-  margin: 0 auto 20px;
-}
-
-@media (max-width: 640px) {
-  .shot-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-.shot-card {
-  position: relative;
-  border-radius: 14px;
-  border: 3px solid transparent;
-  background: var(--mat);
-  overflow: hidden;
-}
-
-.shot-card.picked {
-  border-color: var(--accent);
-}
-
-.shot-pick {
-  display: block;
-  width: 100%;
-  padding: 0;
-}
-
-.shot-card img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.zoom-button {
-  position: absolute;
-  right: 10px;
-  bottom: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.92);
-  color: var(--ink);
-}
-
-.zoom-button svg {
-  width: 21px;
-  height: 21px;
 }
 
 /* 크게 보기 */
@@ -1046,23 +1007,6 @@ button:focus-visible {
   }
 }
 
-.order-badge {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: var(--accent);
-  color: var(--on-accent);
-  font-size: 16px;
-  font-weight: 800;
-}
-
-.select-actions,
 .admin-actions {
   display: flex;
   gap: 12px;
@@ -1490,8 +1434,39 @@ button:focus-visible {
     justify-content: flex-start;
   }
 
+  .swap {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 16px;
+  }
+
+  .swap-side {
+    justify-content: flex-start;
+  }
+
+  /* 세로: 사진을 조금 낮추고 버튼을 2열로 — 인쇄 뒤 안내·예고가 붙어도 한 화면에 들어갑니다. */
   .composite {
-    max-height: 52vh;
+    max-height: 44vh;
+  }
+
+  .result-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .result-actions h2,
+  .result-actions .result-hint,
+  .result-actions .done-toast,
+  .result-actions .clip-pending,
+  .result-actions .dress-toggle,
+  .result-actions .idle-note {
+    grid-column: 1 / -1;
+  }
+
+  .result-actions .restart {
+    grid-column: 1 / -1;
+    justify-self: start;
   }
 
   .sheet-row {
