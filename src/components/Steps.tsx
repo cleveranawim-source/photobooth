@@ -5,9 +5,9 @@ import type { Phase } from "../types";
 const STEPS = ["모양·프레임", "촬영", "고르기", "인화"] as const;
 
 const STEP_OF: Partial<Record<Phase, number>> = {
-  welcome: 1,
+  start: 1,
   camera: 2,
-  select: 3,
+  swap: 3,
   result: 4,
 };
 

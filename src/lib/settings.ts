@@ -1,6 +1,7 @@
 import type { Settings } from "../types";
 import { DEFAULT_FRAME, FRAMES } from "../config/frames";
 import { DEFAULT_LAYOUT, LAYOUTS } from "../config/layouts";
+import { FILTERS } from "../config/filters";
 
 const STORAGE_KEY = "photobooth-settings-v1";
 
@@ -15,6 +16,7 @@ export const DEFAULT_SETTINGS: Settings = {
   idleSeconds: 90,
   enabledFrames: [],
   enabledLayouts: [],
+  enabledFilters: [],
   defaultFrame: DEFAULT_FRAME,
   defaultLayout: DEFAULT_LAYOUT,
   pin: "0000",
@@ -22,6 +24,9 @@ export const DEFAULT_SETTINGS: Settings = {
   // 중학생 대상 기본값. 더 올리면 얼굴이 매끈해지는 대신 인화물에서 질감이 사라집니다.
   skinSmooth: 40,
 };
+
+/** 관리자가 보정을 따로 고르지 않았을 때 촬영 화면에 보이는 넷. 열두 개를 다 펼치면 고르는 화면이 됩니다. */
+export const DEFAULT_QUICK_FILTERS = ["none", "clear", "warmDay", "mono"];
 
 const clampNumber = (value: unknown, min: number, max: number, fallback: number) => {
   const number = typeof value === "number" ? value : Number(value);
@@ -43,6 +48,7 @@ export function loadSettings(): Settings {
     const saved = JSON.parse(raw) as Partial<Settings>;
     const frameKeys = FRAMES.map((frame) => frame.key);
     const layoutKeys = LAYOUTS.map((layout) => layout.key);
+    const filterKeys = FILTERS.map((filter) => filter.key);
     return {
       title: typeof saved.title === "string" ? saved.title.slice(0, 24) : DEFAULT_SETTINGS.title,
       tagline:
@@ -59,6 +65,7 @@ export function loadSettings(): Settings {
       idleSeconds: clampNumber(saved.idleSeconds, 20, 600, DEFAULT_SETTINGS.idleSeconds),
       enabledFrames: keepKnown(saved.enabledFrames, frameKeys),
       enabledLayouts: keepKnown(saved.enabledLayouts, layoutKeys),
+      enabledFilters: keepKnown(saved.enabledFilters, filterKeys),
       defaultFrame: frameKeys.includes(saved.defaultFrame ?? "")
         ? (saved.defaultFrame as string)
         : DEFAULT_SETTINGS.defaultFrame,
@@ -92,3 +99,9 @@ export const visibleLayouts = (settings: Settings) =>
   settings.enabledLayouts.length
     ? LAYOUTS.filter((layout) => settings.enabledLayouts.includes(layout.key))
     : LAYOUTS;
+
+/** 촬영 화면의 보정 목록. 관리자가 안 골랐으면 기본 넷. 순서는 FILTERS 를 따릅니다. */
+export const visibleFilters = (settings: Settings) => {
+  const keys = settings.enabledFilters.length ? settings.enabledFilters : DEFAULT_QUICK_FILTERS;
+  return FILTERS.filter((filter) => keys.includes(filter.key));
+};

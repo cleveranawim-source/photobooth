@@ -1,7 +1,8 @@
 // 앱 전체가 공유하는 타입. 설정(config/*)은 전부 데이터이고, 그리기 코드(lib/compose)는
 // 이 타입만 보고 동작하도록 해서 프레임·레이아웃을 추가할 때 그리기 코드를 안 고쳐도 되게 합니다.
 
-export type Phase = "welcome" | "camera" | "select" | "result" | "admin";
+/** 손님이 지나는 화면. start→shape→frame→camera→(swap)→result 순서이고, admin 은 운영자용. */
+export type Phase = "start" | "shape" | "frame" | "camera" | "swap" | "result" | "admin";
 
 /** 전면 카메라(렌즈)가 있는 화면 가장자리 — 카운트다운을 그쪽에 붙여 시선을 렌즈로 모읍니다. */
 export type CamEdge = "top" | "left" | "right";
@@ -138,6 +139,8 @@ export type Settings = {
   /** 손님에게 보여줄 프레임 목록(비우면 전부) */
   enabledFrames: string[];
   enabledLayouts: string[];
+  /** 촬영 화면에 보여줄 보정 목록(비우면 기본 넷 — 원본·맑게·따뜻한 날·흑백) */
+  enabledFilters: string[];
   defaultFrame: string;
   defaultLayout: string;
   /** 관리자 화면 잠금 PIN */

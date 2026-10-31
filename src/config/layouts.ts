@@ -90,6 +90,21 @@ export const DEFAULT_LAYOUT = LAYOUTS[0].key;
 export const findLayout = (key: string): Layout =>
   LAYOUTS.find((layout) => layout.key === key) ?? LAYOUTS[0];
 
+/**
+ * 조각이 둘인 레이아웃(세로 4컷 ×2 등)을 첫 조각만 남긴 모양으로. 촬영·바꾸기 화면은
+ * 인화지 전체가 아니라 조각 하나를 보여주므로 여기 결과를 합성기에 넘깁니다.
+ * 조각이 하나면 같은 객체를 그대로 돌려줍니다(메모 의존성이 흔들리지 않게).
+ */
+export const singleTileLayout = (layout: Layout): Layout =>
+  layout.tiles.length === 1
+    ? layout
+    : {
+        ...layout,
+        paper: { w: layout.tile.w / 300, h: layout.tile.h / 300 },
+        tiles: [{ x: 0, y: 0 }],
+        cut: null,
+      };
+
 /** 이 레이아웃이 필요로 하는 사진 수 */
 export const shotsNeeded = (layout: Layout) => layout.cells.length;
 

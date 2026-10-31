@@ -29,7 +29,7 @@ import { Steps } from "./components/Steps";
 
 export default function App() {
   const [settings, setSettings] = useState<Settings>(loadSettings);
-  const [phase, setPhase] = useState<Phase>("welcome");
+  const [phase, setPhase] = useState<Phase>("start");
   const [frameKey, setFrameKey] = useState(settings.defaultFrame);
   const [layoutKey, setLayoutKey] = useState(settings.defaultLayout);
   const [filterKey, setFilterKey] = useState("none");
@@ -178,7 +178,7 @@ export default function App() {
   const reset = useCallback(() => {
     runGenRef.current += 1; // 진행 중일 수 있는 촬영 시퀀스 중단
     stopCamera(); // 환영 화면에서는 카메라 표시등이 꺼지도록
-    setPhase("welcome");
+    setPhase("start");
     setComposite(null);
     setClip(null);
     setClipPending(false);
@@ -193,7 +193,7 @@ export default function App() {
   // 촬영 대기 화면도 초기화 대상입니다 — 손님이 여기까지 왔다가 그냥 가면 카메라가
   // 켜진 채(표시등 점등) 줌·필터가 다음 손님에게 남습니다. 촬영 시퀀스 중에는 걸지 않습니다.
   const idleSecondsLeft = useIdleReset(
-    phase === "result" || phase === "select" || (phase === "camera" && !shooting),
+    phase === "result" || phase === "swap" || (phase === "camera" && !shooting),
     settings.idleSeconds,
     reset,
   );
@@ -338,7 +338,7 @@ export default function App() {
       // 스트림은 끄지 않고 유지 — '다시 찍기' 때 권한 팝업이 다시 뜨지 않습니다.
       camera.setReady(false);
       if (frames.length > needed) {
-        setPhase("select");
+        setPhase("swap");
         return;
       }
       setStatus("사진을 꾸미고 있어요");
@@ -444,13 +444,13 @@ export default function App() {
       )}
 
       {/* 환영 화면의 오류는 시작 버튼 옆(WelcomeScreen)에 띄웁니다. */}
-      {error && phase !== "welcome" && (
+      {error && phase !== "start" && (
         <p className="error no-print" role="alert">
           {error}
         </p>
       )}
 
-      {phase === "welcome" && (
+      {phase === "start" && (
         <WelcomeScreen
           title={settings.title}
           tagline={settings.tagline}
@@ -501,7 +501,7 @@ export default function App() {
         />
       )}
 
-      {phase === "select" && (
+      {phase === "swap" && (
         <SelectScreen
           shots={shots}
           picked={picked}
@@ -540,7 +540,7 @@ export default function App() {
       )}
 
       {phase === "admin" && (
-        <AdminScreen settings={settings} onSave={applySettings} onClose={() => setPhase("welcome")} />
+        <AdminScreen settings={settings} onSave={applySettings} onClose={() => setPhase("start")} />
       )}
 
       {/* 인쇄 전용 — 관리자가 정한 매수만큼 페이지를 만듭니다(브라우저 인쇄 대화상자의 매수와 별개). */}
