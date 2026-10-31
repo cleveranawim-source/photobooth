@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Frame, Layout, LayoutCell } from "../types";
 import { contentBounds, stageTransform } from "../lib/stageGeometry";
 
@@ -69,7 +69,15 @@ export function PrintStage({
 
   const bounds = useMemo(() => contentBounds(layout, slots), [layout, slots]);
   const active = activeIndex !== null ? (slots[activeIndex] ?? null) : null;
-  const transform = area.w > 0 && area.h > 0 ? stageTransform(area, bounds, active) : null;
+  const measured = area.w > 0 && area.h > 0;
+  // 측정 전에도 내용은 그립니다 — 그래야 활성 칸 안의 <video> 가 첫 커밋에 생겨 App 이
+  // 스트림을 붙일 수 있습니다. 보이지는 않게 두고(visibility), 첫 배치는 애니메이션 없이,
+  // 그 다음 변화부터 필름처럼 밀립니다(settled).
+  const transform = measured ? stageTransform(area, bounds, active) : { scale: 1, x: 0, y: 0 };
+  const [settled, setSettled] = useState(false);
+  useEffect(() => {
+    if (measured && !settled) setSettled(true);
+  }, [measured, settled]);
   const cellCount = layout.cells.length;
 
   // 길게 누르면 크게 보기. 길게 누른 뒤 손을 떼며 생기는 click 은 선택으로 치지 않습니다.
@@ -98,15 +106,15 @@ export function PrintStage({
 
   return (
     <div ref={containerRef} className="print-stage">
-      {transform && (
-        <div
-          className="print-stage-content"
-          style={{
-            width: bounds.w,
-            height: bounds.h,
-            transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
-          }}
-        >
+      <div
+        className={`print-stage-content${settled ? " settled" : ""}`}
+        style={{
+          width: bounds.w,
+          height: bounds.h,
+          transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
+          visibility: measured ? undefined : "hidden",
+        }}
+      >
           {tileSrc ? (
             <img
               className="stage-tile"
@@ -168,8 +176,7 @@ export function PrintStage({
               {children}
             </div>
           )}
-        </div>
-      )}
+      </div>
     </div>
   );
 }

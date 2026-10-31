@@ -8,6 +8,7 @@ dev 서버(`npm run dev`)가 떠 있어야 합니다. chromium 의 가짜 카메
 변형:
   --skip  관리자가 모양·프레임을 하나씩만 켠 경우 — 시작 버튼 뒤 바로 촬영 화면
   --deny  카메라 권한 거부 — 프레임 화면에 '선생님을 불러주세요' 오류가 보여야 함
+  --band  가로 4컷 띠 — 여분 칸이 조각 오른쪽에 붙고 활성 칸이 가로로 밀리는지(스크린샷)
 실패하면 어느 검사가 깨졌는지 출력하고 종료 코드 1.
 """
 
@@ -71,13 +72,17 @@ async def open_app(context, url, settings):
     return page, errors
 
 
-async def choose_to_camera(page, out, checks):
+# 촬영이 끝나면 가는 화면. (Task 6 에서 .swap 으로 좁힙니다.)
+AFTER_SHOOT = ".swap, .select, .result"
+
+
+async def choose_to_camera(page, out, checks, shape="세로 4컷"):
     """시작 → 모양 → 프레임 → 촬영 화면(카메라 준비 완료)까지."""
     await snapshot(page, out, checks, "start")
     await page.click(".start-button")
     await page.wait_for_selector(".shape", timeout=5000)
     await snapshot(page, out, checks, "shape")
-    await page.click(".shape-card:has-text('세로 4컷')")
+    await page.click(f".shape-card:has-text('{shape}')")
     await page.wait_for_selector(".frame-screen", timeout=5000)
     await snapshot(page, out, checks, "frame")
     first = page.locator(".frame-pick").first
@@ -86,6 +91,21 @@ async def choose_to_camera(page, out, checks):
     await page.wait_for_selector(".capture", timeout=10000)
     await page.wait_for_selector("button:has-text('장 찍기'):not([disabled])", timeout=15000)
     await snapshot(page, out, checks, "camera")
+    # 프레임 안에서 찍는다 — 활성 칸 안에 카메라가 있어야 합니다.
+    checks.expect(
+        await page.locator(".capture .stage-active video").count() == 1, "활성 칸 안에 카메라가 없음"
+    )
+
+
+async def shoot(page, out, checks, name="countdown"):
+    """찍기를 누르고 카운트다운 중 스크린샷, 촬영이 끝나 다음 화면으로 갈 때까지."""
+    await page.click("button:has-text('장 찍기')")
+    await page.wait_for_timeout(1600)
+    await snapshot(page, out, checks, name)
+    checks.expect(
+        await page.locator(".capture .stage-active .countdown").count() == 1, "카운트다운이 활성 칸 안에 없음"
+    )
+    await page.wait_for_selector(AFTER_SHOOT, timeout=60000)
 
 
 async def run_default(browser, url, out, tag, width, height):
@@ -95,6 +115,7 @@ async def run_default(browser, url, out, tag, width, height):
     try:
         page, errors = await open_app(context, url, {})
         await choose_to_camera(page, out, checks)
+        await shoot(page, out, checks)
     except Exception as caught:  # noqa: BLE001 — 어느 단계에서 멈췄는지 보고합니다
         checks.failures.append(f"[{tag}] 흐름 중단: {type(caught).__name__}: {str(caught)[:160]}")
     checks.expect(not errors, f"콘솔 오류: {errors[:3]}")
@@ -141,12 +162,33 @@ async def run_deny(browser, url, out, tag, width, height):
     return checks
 
 
+async def run_band(browser, url, out, tag, width, height):
+    """가로 띠: 여분 칸이 오른쪽에 붙고, 5번째(여분 1) 촬영 중 조각이 가로로 밀립니다."""
+    checks = Checks(f"{tag}-band")
+    context = await browser.new_context(viewport={"width": width, "height": height})
+    errors = []
+    try:
+        page, errors = await open_app(context, url, {})
+        await choose_to_camera(page, out, checks, shape="가로 4컷 띠")
+        await page.click("button:has-text('장 찍기')")
+        await page.wait_for_selector(".status:has-text('여분 1')", timeout=45000)
+        await page.wait_for_timeout(900)
+        await snapshot(page, out, checks, "band-extra")
+        await page.wait_for_selector(AFTER_SHOOT, timeout=60000)
+    except Exception as caught:  # noqa: BLE001
+        checks.failures.append(f"[{tag}-band] 흐름 중단: {type(caught).__name__}: {str(caught)[:160]}")
+    checks.expect(not errors, f"콘솔 오류: {errors[:3]}")
+    await context.close()
+    return checks
+
+
 async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("out")
     parser.add_argument("--url", default="http://localhost:4173/")
     parser.add_argument("--skip", action="store_true")
     parser.add_argument("--deny", action="store_true")
+    parser.add_argument("--band", action="store_true")
     args = parser.parse_args()
     out = pathlib.Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -155,6 +197,8 @@ async def main():
         runner, launch_args = run_deny, FAKE_CAMERA
     elif args.skip:
         runner, launch_args = run_skip, FAKE_CAMERA + FAKE_PERMISSION
+    elif args.band:
+        runner, launch_args = run_band, FAKE_CAMERA + FAKE_PERMISSION
     else:
         runner, launch_args = run_default, FAKE_CAMERA + FAKE_PERMISSION
 

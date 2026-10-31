@@ -18,6 +18,8 @@ import {
 import { buildTimelapse, startTimelapseCapture, type Clip } from "./lib/timelapse";
 import { useCamera } from "./hooks/useCamera";
 import { useIdleReset, useWakeLock } from "./hooks/useKiosk";
+import { useTileImage } from "./hooks/useTileImage";
+import { captureSlots } from "./lib/stageGeometry";
 import { framePreviewKey, usePrintPreviews } from "./hooks/usePrintPreviews";
 import { StartScreen } from "./screens/StartScreen";
 import { ShapeScreen } from "./screens/ShapeScreen";
@@ -28,6 +30,8 @@ import { ResultScreen } from "./screens/ResultScreen";
 import { AdminScreen } from "./screens/AdminScreen";
 import { Icon } from "./components/Icon";
 import { StepDots } from "./components/Steps";
+
+const READY_STATUS = "주황 칸에 내 얼굴이 들어가요. 준비되면 찍기를 눌러요";
 
 export default function App() {
   const [settings, setSettings] = useState<Settings>(loadSettings);
@@ -60,7 +64,7 @@ export default function App() {
   const [countdown, setCountdown] = useState<number | null>(null);
   const [shotIndex, setShotIndex] = useState(0);
   const [flash, setFlash] = useState(false);
-  const [status, setStatus] = useState("준비되면 촬영 버튼을 눌러주세요");
+  const [status, setStatus] = useState(READY_STATUS);
   const [error, setError] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -96,6 +100,21 @@ export default function App() {
   const totalShots = Math.max(settings.shootCount, needed);
   // 촬영 캔버스를 합성 시 차지할 픽셀 폭에 맞춰 잡으면 1:1 로 들어가 다시 스케일되지 않습니다.
   const captureWidth = Math.round(layout.cells[0].w * 2);
+
+  // ── 촬영 무대 ──
+  // 촬영 칸 전부(조각 칸 + 여분)와, 찍힌 사진이 들어간 조각 그림. 그림은 합성기가 다시 그립니다.
+  const slots = useMemo(() => captureSlots(layout, totalShots), [layout, totalShots]);
+  const tileImages = useMemo(() => shots.slice(0, needed), [shots, needed]);
+  const tileSrc = useTileImage({
+    frame,
+    layout,
+    images: tileImages,
+    title: settings.title,
+    tagline: settings.tagline,
+    caption,
+  });
+  // 다음에 찍힐 칸. 마지막 사진이 찍힌 뒤에는 화면이 바뀌므로 상한만 막아 둡니다.
+  const activeIndex = Math.min(shotIndex, slots.length - 1);
 
   // 줌 상한은 고정값이 아니라 **지금 이 조합에서 인화 화질이 안 깎이는 한계**로 정합니다.
   // 레이아웃마다 필요 픽셀이 다르고 기기마다 카메라 해상도가 달라서, 같은 배율이라도
@@ -223,7 +242,7 @@ export default function App() {
     setShotIndex(0);
     if (await camera.start()) {
       setPhase("camera");
-      setStatus("준비되면 촬영 버튼을 눌러주세요");
+      setStatus(READY_STATUS);
     }
   };
 
@@ -360,7 +379,7 @@ export default function App() {
     try {
       for (let index = 0; index < totalShots; index += 1) {
         if (aborted()) return;
-        setStatus(`${index + 1}번째 사진을 준비해요`);
+        setStatus(index < needed ? `${index + 1}번째 칸이에요` : `여분 ${index - needed + 1}번째예요`);
         for (let number = settings.countdown; number >= 1; number -= 1) {
           setCountdown(number);
           playBeep(number === 1 ? 1320 : 880, 80);
@@ -495,7 +514,7 @@ export default function App() {
   return (
     // 촬영 화면만 뷰포트 높이에 고정(app--fit)합니다 — 뷰파인더가 남는 높이에 맞춰 줄어들어
     // 촬영 버튼이 접힘선 아래로 떨어지지 않게. 나머지 화면은 문서 스크롤을 씁니다.
-    <div className={`app${phase === "camera" ? " app--fit" : ""}`}>
+    <div className={`app${phase === "camera" || phase === "swap" ? " app--fit" : ""}`}>
       {/* 상단 바: 시작·관리자에는 없고, 고르는 화면에는 되돌아가기 + 점 셋, 그 뒤로는 이름만. */}
       {back && (
         <header className="topbar no-print">
@@ -548,7 +567,11 @@ export default function App() {
           previewFilter={previewFilterCss(filter)}
           glowFilter={glowFilterCss(filter)}
           glowStrength={filter.bloom ?? 0}
-          ratio={ratio}
+          layout={layout}
+          frame={frame}
+          tileSrc={tileSrc}
+          slots={slots}
+          activeIndex={activeIndex}
           camEdge={settings.camEdge}
           countdown={countdown}
           shotIndex={shotIndex}

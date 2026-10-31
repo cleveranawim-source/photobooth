@@ -1,6 +1,7 @@
 import { useRef, type RefObject } from "react";
-import type { CamEdge, FilmGrade, FilterDef } from "../types";
+import type { CamEdge, FilmGrade, FilterDef, Frame, Layout, LayoutCell } from "../types";
 import { Icon } from "../components/Icon";
+import { PrintStage } from "../components/PrintStage";
 import { useFilmPreview } from "../hooks/useFilmPreview";
 import { useFilterSwatches } from "../hooks/useFilterSwatches";
 import { MAX_ZOOM } from "../lib/canvas";
@@ -11,7 +12,16 @@ type Props = {
   previewFilter: string;
   glowFilter: string;
   glowStrength: number;
-  ratio: number;
+  layout: Layout;
+  frame: Frame;
+  /** 조각 그림(useTileImage). 찍은 칸은 이미 사진이 들어가 있습니다. */
+  tileSrc: string | null;
+  /** 촬영 칸 전부(captureSlots). 조각 칸 수를 넘는 것은 여분. */
+  slots: LayoutCell[];
+  /** 지금까지 찍힌 사진(슬롯 순서) */
+  shots: string[];
+  /** 다음에 찍힐 칸 — 카메라가 이 칸 안에 보입니다. */
+  activeIndex: number;
   camEdge: CamEdge;
   countdown: number | null;
   shotIndex: number;
@@ -20,8 +30,6 @@ type Props = {
   ready: boolean;
   status: string;
   flash: boolean;
-  /** 지금까지 찍힌 사진들 — 아래에 하나씩 쌓여 진행이 눈에 보이게 합니다. */
-  shots: string[];
   filters: FilterDef[];
   filterKey: string;
   /** 지금 고른 필터의 필름 계조. 있으면 미리보기를 캔버스로 직접 그립니다. */
@@ -35,13 +43,23 @@ type Props = {
   onShoot: () => void;
 };
 
+/**
+ * 4 촬영 — 화면이 곧 인화물. 고른 프레임 조각이 크게 있고, 다음 빈 칸 안에 내 얼굴이
+ * 실시간으로 비칩니다. 찍히면 그 칸이 사진으로 굳고(조각 그림이 다시 합성됨) 다음 칸이
+ * 활성화됩니다. 칸 수를 넘는 여분은 조각 바깥 칸에 이어서 찍힙니다.
+ */
 export function CaptureScreen({
   videoRef,
   glowVideoRef,
   previewFilter,
   glowFilter,
   glowStrength,
-  ratio,
+  layout,
+  frame,
+  tileSrc,
+  slots,
+  shots,
+  activeIndex,
   camEdge,
   countdown,
   shotIndex,
@@ -50,7 +68,6 @@ export function CaptureScreen({
   ready,
   status,
   flash,
-  shots,
   filters,
   filterKey,
   film,
@@ -61,6 +78,9 @@ export function CaptureScreen({
   onShoot,
 }: Props) {
   const filmCanvasRef = useRef<HTMLCanvasElement>(null);
+  const active = slots[Math.min(activeIndex, slots.length - 1)];
+  // 모든 칸은 같은 크기라 비율도 하나입니다 — 촬영 크롭(centerCrop)과 같은 값.
+  const ratio = active.w / active.h;
   useFilmPreview(videoRef, filmCanvasRef, film, ratio, zoom);
   const swatches = useFilterSwatches(filters);
 
@@ -101,120 +121,127 @@ export function CaptureScreen({
     if (pointers.current.size < 2) pinchStart.current = null;
   };
 
+  // 카운트다운은 활성 칸 안, 칸 높이의 40%. 조각 단위라 배율과 함께 줄어듭니다.
+  const countdownSize = Math.round(active.h * 0.4);
+
   return (
     <main className={`capture no-print edge-${camEdge}`}>
-      {/* 뷰파인더는 남는 높이를 전부 씁니다. 아래 줄(트레이·필터·촬영 버튼)이 먼저 자리를
-          잡고, 뷰파인더가 그 나머지에 맞춰 늘고 줄어 — 어느 방향에서도 버튼이 접히지 않습니다. */}
-      <div className="stage">
-        <div
-          className="viewfinder"
-          style={
-            {
-              "--vf-ratio": `${ratio}`,
-              "--cam-zoom": `${zoom}`,
-              // 핀치를 우리가 처리할 때만 브라우저 기본 동작을 막습니다. 줌이 없는데도
-              // 막아 두면 뷰파인더 위에서 페이지 스크롤이 안 됩니다.
-              touchAction: canZoom ? "none" : undefined,
-            } as React.CSSProperties
-          }
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={endPointer}
-          onPointerCancel={endPointer}
-          onPointerLeave={endPointer}
+      <div className="capture-stage">
+        <PrintStage
+          layout={layout}
+          frame={frame}
+          tileSrc={tileSrc}
+          slots={slots}
+          shots={slots.map((_, index) => shots[index])}
+          activeIndex={activeIndex}
         >
-          <video
-            ref={videoRef}
-            className="cam"
-            playsInline
-            muted
-            autoPlay
-            style={{ filter: previewFilter === "none" ? undefined : previewFilter }}
-          />
-          {glowStrength > 0 && (
+          <div
+            className="cell-touch"
+            // 핀치를 우리가 처리할 때만 브라우저 기본 동작을 막습니다.
+            style={{ touchAction: canZoom ? "none" : undefined }}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={endPointer}
+            onPointerCancel={endPointer}
+            onPointerLeave={endPointer}
+          >
             <video
-              ref={glowVideoRef}
-              className="cam glow"
+              ref={videoRef}
+              className="cam"
               playsInline
               muted
               autoPlay
-              aria-hidden="true"
-              style={{ filter: glowFilter, opacity: glowStrength * 0.72 }}
+              style={{
+                filter: previewFilter === "none" ? undefined : previewFilter,
+                ["--cam-zoom" as string]: `${zoom}`,
+              }}
             />
-          )}
-          {/* 필름 계조 미리보기 — 비디오 위를 덮습니다(픽셀 안에서 이미 좌우 반전돼 있어
-              .cam 처럼 CSS 로 뒤집지 않습니다). */}
-          {film && <canvas ref={filmCanvasRef} className="cam-canvas" aria-hidden="true" />}
-          {flash && <div className="flash" />}
-          {countdown !== null && (
-            // key 를 숫자로 두면 매 초 다시 그려져 링 애니메이션이 처음부터 돕니다.
-            <div key={countdown} className={`countdown${countdown === 1 ? " last" : ""}`}>
-              <svg className="countdown-ring" viewBox="0 0 100 100" aria-hidden="true">
-                <circle className="ring-track" cx="50" cy="50" r="45" />
-                <circle className="ring-fill" cx="50" cy="50" r="45" />
-              </svg>
-              <span>{countdown}</span>
-            </div>
-          )}
-          {shooting && (
-            <div className="look-here">
-              <Icon name="camera" /> 여기를 봐요!
-            </div>
-          )}
-          {zoom > 1 && (
-            // 확대 중일 때만 뜹니다. 되돌릴 방법이 없으면 손님이 당황해서 리셋 버튼을 같이 둡니다.
-            <div className="zoom-badge">
-              <span>{zoom.toFixed(1)}×</span>
-              <button type="button" onClick={() => onZoom(1)}>
-                되돌리기
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* 찍은 사진이 하나씩 채워집니다 — 점만 켜지는 것보다 진행이 훨씬 잘 보입니다. */}
-      <div className="shot-tray" aria-label={`${total}장 중 ${shotIndex}장 촬영`}>
-        {Array.from({ length: total }, (_, index) => (
-          <div
-            key={index}
-            className={`tray-slot${shots[index] ? " filled" : ""}`}
-            style={{ aspectRatio: `${ratio}` }}
-          >
-            {shots[index] ? <img src={shots[index]} alt={`${index + 1}번째 사진`} /> : index + 1}
-          </div>
-        ))}
-      </div>
-
-      {/* 촬영 40초 동안 화면 낭독기도 진행을 들을 수 있게 aria-live 를 둡니다. */}
-      <p className="status" aria-live="polite">
-        {!ready && !shooting ? "카메라를 준비하는 중이에요…" : status}
-      </p>
-
-      {/* 보정은 이름만 봐선 알 수 없어, 실제 엔진으로 입힌 얼굴 썸네일을 함께 보여줍니다. */}
-      <div className="filter-bar" role="group" aria-label="사진 보정">
-        {filters.map((item) => (
-          <button
-            key={item.key}
-            className={`filter-chip${item.key === filterKey ? " selected" : ""}`}
-            aria-pressed={item.key === filterKey}
-            disabled={shooting}
-            onClick={() => onFilter(item.key)}
-          >
-            {swatches[item.key] ? (
-              <img src={swatches[item.key]} alt="" />
-            ) : (
-              <span className="filter-dot" aria-hidden="true" />
+            {glowStrength > 0 && (
+              <video
+                ref={glowVideoRef}
+                className="cam glow"
+                playsInline
+                muted
+                autoPlay
+                aria-hidden="true"
+                style={{
+                  filter: glowFilter,
+                  opacity: glowStrength * 0.72,
+                  ["--cam-zoom" as string]: `${zoom}`,
+                }}
+              />
             )}
-            {item.name}
-          </button>
-        ))}
+            {/* 필름 계조 미리보기 — 비디오 위를 덮습니다(픽셀 안에서 이미 좌우 반전돼 있어
+                .cam 처럼 CSS 로 뒤집지 않습니다). */}
+            {film && <canvas ref={filmCanvasRef} className="cam-canvas" aria-hidden="true" />}
+            {flash && <div className="flash" />}
+            {countdown !== null && (
+              // key 를 숫자로 두면 매 초 다시 그려져 링 애니메이션이 처음부터 돕니다.
+              <div
+                key={countdown}
+                className={`countdown in-cell${countdown === 1 ? " last" : ""}`}
+                style={{
+                  width: countdownSize,
+                  height: countdownSize,
+                  fontSize: Math.round(countdownSize * 0.48),
+                }}
+              >
+                <svg className="countdown-ring" viewBox="0 0 100 100" aria-hidden="true">
+                  <circle className="ring-track" cx="50" cy="50" r="45" />
+                  <circle className="ring-fill" cx="50" cy="50" r="45" />
+                </svg>
+                <span>{countdown}</span>
+              </div>
+            )}
+          </div>
+        </PrintStage>
+
+        {/* 렌즈 쪽 가장자리에 붙여 시선을 렌즈로 보냅니다 — 칸 안이 아니라 화면 가장자리. */}
+        {shooting && (
+          <div className="look-here">
+            <Icon name="camera" /> 여기를 봐요!
+          </div>
+        )}
+        {zoom > 1 && (
+          // 확대 중일 때만 뜹니다. 되돌릴 방법이 없으면 손님이 당황해서 리셋 버튼을 같이 둡니다.
+          <div className="zoom-badge">
+            <span>{zoom.toFixed(1)}×</span>
+            <button type="button" onClick={() => onZoom(1)}>
+              되돌리기
+            </button>
+          </div>
+        )}
       </div>
 
-      <div className="capture-actions">
-        <button className="primary-button" onClick={onShoot} disabled={!ready || shooting}>
+      <div className="capture-side">
+        {/* 촬영 동안 화면 낭독기도 진행을 들을 수 있게 aria-live 를 둡니다. */}
+        <p className="status" aria-live="polite">
+          {!ready && !shooting ? "카메라를 준비하는 중이에요…" : status}
+        </p>
+
+        {/* 보정은 이름만 봐선 알 수 없어, 실제 엔진으로 입힌 얼굴 썸네일을 함께 보여줍니다. */}
+        <div className="filter-bar" role="group" aria-label="사진 보정">
+          {filters.map((item) => (
+            <button
+              key={item.key}
+              className={`filter-chip${item.key === filterKey ? " selected" : ""}`}
+              aria-pressed={item.key === filterKey}
+              disabled={shooting}
+              onClick={() => onFilter(item.key)}
+            >
+              {swatches[item.key] ? (
+                <img src={swatches[item.key]} alt="" />
+              ) : (
+                <span className="filter-dot" aria-hidden="true" />
+              )}
+              {item.name}
+            </button>
+          ))}
+        </div>
+
+        <button className="primary-button shoot" onClick={onShoot} disabled={!ready || shooting}>
           <Icon name="camera" />
-          {shooting ? `촬영 중 · ${shotIndex} / ${total}` : `${total}장 찍기`}
+          {shooting ? `찍는 중 · ${shotIndex} / ${total}` : `${total}장 찍기`}
         </button>
       </div>
     </main>

@@ -589,73 +589,42 @@ button:focus-visible {
 }
 
 /* ── 촬영 화면 ─────────────────────────────────────────────── */
+/* 화면이 곧 인화물. 왼쪽 무대(PrintStage)에 조각이 크게 있고, 활성 칸 안에 카메라가 비칩니다.
+   오른쪽 좁은 열은 상태 문장·보정·찍기 버튼. 높이는 .app--fit 이 뷰포트에 고정하므로
+   무대가 남는 높이를 받고 버튼은 어느 방향에서도 보입니다. */
 .capture {
   flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 28px;
+  min-height: 0;
+}
+
+.capture-stage {
+  position: relative;
+  min-height: 0;
+}
+
+.capture-side {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  min-height: 0;
-}
-
-/* 뷰파인더가 들어가는 자리. 아래 줄들이 먼저 자리를 잡고 여기가 나머지를 받습니다.
-   container-type: size 로 이 높이(cqh)를 뷰파인더 폭 계산에 넘깁니다. */
-.stage {
-  flex: 1;
-  min-height: 0;
-  width: 100%;
-  display: flex;
-  align-items: center;
   justify-content: center;
-  container-type: size;
+  gap: 16px;
+  min-width: 0;
 }
 
-/* 뷰파인더는 **찍히는 화각과 정확히 같아야** 합니다.
-   aspect-ratio 에 max-height 를 같이 걸면, 높이만 잘리고 폭은 그대로라 비율이 깨집니다
-   (단컷=정사각 레이아웃인데 940×558 와이드로 나오던 문제). 높이 상한을 폭 계산에 넣어
-   폭이 함께 줄어들게 해야 비율이 유지됩니다. --vf-ratio 는 App 이 넣어 줍니다.
-   높이 상한은 고정 vh 가 아니라 .stage 가 실제로 받은 높이(100cqh)입니다 — 그래서
-   가로 iPad 에서도 촬영 버튼이 접힘선 아래로 떨어지지 않습니다. */
-.viewfinder {
-  position: relative;
-  width: min(100%, 940px, calc(100cqh * var(--vf-ratio, 1.6)));
-  aspect-ratio: var(--vf-ratio, 1.6);
-  border-radius: var(--radius);
-  overflow: hidden;
-  background: var(--mat);
-  /* touch-action 은 CaptureScreen 이 인라인으로 켭니다 — 줌이 가능할 때만 브라우저 기본
-     핀치를 막아야 합니다(안 막으면 페이지 전체가 확대되어 뷰파인더 줌과 싸웁니다). */
+.status {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.4;
+  color: var(--ink);
 }
 
-/* 확대 중임을 알리고 되돌릴 길을 줍니다 — 손님이 실수로 확대하고 못 푸는 일이 잦습니다. */
-.zoom-badge {
+/* 활성 칸 안 — 카메라·필름 캔버스·플래시·카운트다운이 들어가는 상자 */
+.cell-touch {
   position: absolute;
-  left: 50%;
-  bottom: 14px;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 5px 5px 5px 16px;
-  border-radius: 999px;
-  background: rgb(0 0 0 / 0.55);
-  color: #fff;
-  font-size: 15px;
-  font-variant-numeric: tabular-nums;
-  backdrop-filter: blur(6px);
-}
-
-.zoom-badge button {
-  border: 0;
-  border-radius: 999px;
-  /* 이 앱의 터치 타깃 기준(44px)을 지킵니다 — 확대를 풀려는 손님이 헛누르지 않게. */
-  min-height: 44px;
-  padding: 0 18px;
-  background: rgb(255 255 255 / 0.22);
-  color: #fff;
-  font: inherit;
-  font-size: 15px;
-  cursor: pointer;
+  inset: 0;
 }
 
 .cam {
@@ -702,17 +671,18 @@ button:focus-visible {
   }
 }
 
+/* 카운트다운 — 활성 칸 한가운데, 크기는 인라인(칸 높이의 40%). */
 .countdown {
   position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 112px;
-  height: 112px;
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.42);
   color: #fff;
-  font-size: 54px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
 }
@@ -765,19 +735,26 @@ button:focus-visible {
   }
 }
 
+/* "여기를 봐요!" — 무대의 렌즈 쪽 가장자리. 칸 안이 아니라 화면 가장자리라야 시선이 렌즈로 갑니다. */
 .look-here {
   position: absolute;
+  z-index: 2;
   display: flex;
   align-items: center;
   gap: 7px;
-  padding: 8px 16px;
+  padding: 10px 18px;
   border-radius: 999px;
   background: var(--accent);
   color: var(--on-accent);
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 800;
   white-space: nowrap;
   animation: pulse 1.4s ease-in-out infinite;
+}
+
+.look-here svg {
+  width: 18px;
+  height: 18px;
 }
 
 @keyframes pulse {
@@ -790,100 +767,64 @@ button:focus-visible {
   }
 }
 
-/* 카운트다운과 안내를 렌즈 쪽 가장자리에 붙여, 숫자를 보는 시선이 렌즈로 향하게 합니다. */
-.edge-top .countdown {
-  top: 18px;
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-.look-here svg {
-  width: 18px;
-  height: 18px;
-}
-
 .edge-top .look-here {
-  top: 130px;
+  top: 10px;
   left: 50%;
   transform: translateX(-50%);
-}
-
-.edge-left .countdown {
-  left: 18px;
-  top: 50%;
-  transform: translateY(-50%);
 }
 
 .edge-left .look-here {
-  left: 18px;
-  top: calc(50% + 76px);
-}
-
-.edge-right .countdown {
-  right: 18px;
+  left: 10px;
   top: 50%;
   transform: translateY(-50%);
 }
 
 .edge-right .look-here {
-  right: 18px;
-  top: calc(50% + 76px);
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
-/* 찍은 사진이 하나씩 채워지는 줄 — 진행이 눈에 보여야 촬영이 리듬을 탑니다. */
-.shot-tray {
-  display: flex;
-  gap: 8px;
-  justify-content: center;
-  flex-wrap: wrap;
-}
-
-.tray-slot {
+/* 확대 중임을 알리고 되돌릴 길을 줍니다 — 손님이 실수로 확대하고 못 푸는 일이 잦습니다. */
+.zoom-badge {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: clamp(52px, 8vw, 84px);
-  border-radius: 8px;
-  border: 2px dashed var(--edge);
-  overflow: hidden;
-  font-size: 14px;
-  font-weight: 800;
-  color: var(--sub);
-  opacity: 0.7;
+  gap: 12px;
+  padding: 5px 5px 5px 16px;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.55);
+  color: #fff;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  backdrop-filter: blur(6px);
 }
 
-.tray-slot.filled {
-  border-style: solid;
-  border-color: var(--accent);
-  opacity: 1;
-  animation: pop-in 0.32s cubic-bezier(0.34, 1.4, 0.64, 1);
+.zoom-badge button {
+  border: 0;
+  border-radius: 999px;
+  /* 이 앱의 터치 타깃 기준(44px)을 지킵니다 — 확대를 풀려는 손님이 헛누르지 않게. */
+  min-height: 44px;
+  padding: 0 18px;
+  background: rgb(255 255 255 / 0.22);
+  color: #fff;
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
 }
 
-.tray-slot img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-@keyframes pop-in {
-  from {
-    transform: scale(0.72);
-    opacity: 0;
-  }
-  to {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-
-/* 보정 고르기 — 12개를 두 줄로 접지 않고 한 줄로 넘깁니다. 칩마다 실제 엔진으로 입힌
-   얼굴 썸네일이 있어 이름을 몰라도 고를 수 있습니다. */
+/* 보정 고르기 — 한 줄로 넘깁니다. 칩마다 실제 엔진으로 입힌 얼굴 썸네일이 있어
+   이름을 몰라도 고를 수 있습니다. */
 .filter-bar {
   display: flex;
   gap: 8px;
   flex-wrap: nowrap;
   overflow-x: auto;
-  max-width: min(100%, 940px);
+  max-width: 100%;
   padding: 4px 4px;
   scroll-snap-type: x proximity;
   scrollbar-width: none;
@@ -901,7 +842,7 @@ button:focus-visible {
   flex-direction: column;
   align-items: center;
   gap: 5px;
-  min-width: 78px;
+  min-width: 70px;
   padding: 6px 8px 8px;
   border-radius: 14px;
   border: 2px solid var(--edge);
@@ -920,7 +861,7 @@ button:focus-visible {
   background: var(--mat);
 }
 
-/* 고른 보정은 테두리가 아니라 채움 — 열두 개 중 하나가 멀리서도 보여야 합니다. */
+/* 고른 보정은 테두리가 아니라 채움 — 멀리서도 보여야 합니다. */
 .filter-chip.selected {
   border-color: var(--ink);
   background: var(--ink);
@@ -931,27 +872,19 @@ button:focus-visible {
   box-shadow: 0 0 0 2px #fff;
 }
 
-.status {
-  margin: 0;
-  font-size: 17px;
-  font-weight: 700;
-  color: var(--sub);
-}
-
-.capture-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
+/* 찍기 — 이 화면의 유일한 버튼. 촬영 중엔 글자가 곧 진행 표시입니다. */
+.shoot {
   justify-content: center;
+  min-height: 76px;
+  font-size: 24px;
 }
 
-.capture-actions .primary-button {
-  min-width: 240px;
+.shoot svg {
+  width: 28px;
+  height: 28px;
 }
 
-/* 촬영 중 비활성은 흐린 주황 대신 읽히는 회색 — 버튼 글자가 곧 진행 표시입니다. */
-.capture-actions .primary-button:disabled {
+.shoot:disabled {
   opacity: 1;
   background: var(--mat);
   color: var(--sub);
@@ -1546,6 +1479,17 @@ button:focus-visible {
     min-height: 300px;
   }
 
+  /* 세로: 무대가 위, 조작이 아래. 무대가 남는 높이를 받습니다. */
+  .capture {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 16px;
+  }
+
+  .capture-side {
+    justify-content: flex-start;
+  }
+
   .composite {
     max-height: 52vh;
   }
@@ -1555,12 +1499,6 @@ button:focus-visible {
   }
 }
 
-/* 컨테이너 쿼리 단위를 모르는 옛 브라우저용 예비치 */
-@supports not (width: 1cqh) {
-  .viewfinder {
-    width: min(100%, 940px, calc(50vh * var(--vf-ratio, 1.6)));
-  }
-}
 
 /* ── 인쇄 ──────────────────────────────────────────────────── */
 /* 용지 크기(@page size)와 .print-image 의 인치 크기는 레이아웃마다 달라
@@ -1624,6 +1562,10 @@ button:focus-visible {
   left: 0;
   top: 0;
   transform-origin: 0 0;
+}
+
+/* 첫 배치 뒤부터만 밀림 애니메이션 — 처음 나타날 때 0 에서 커지는 모습을 막습니다. */
+.print-stage-content.settled {
   transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
