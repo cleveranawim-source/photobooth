@@ -11,6 +11,7 @@ dev 서버(`npm run dev`)가 떠 있어야 합니다. chromium 의 가짜 카메
   --band  가로 4컷 띠 — 여분 칸이 조각 오른쪽에 붙고 활성 칸이 가로로 밀리는지(스크린샷)
   --exact 촬영 장수 = 칸 수 — 바꾸기 화면 없이 바로 완성
   --idle  모양 화면에서 자리를 뜨면 idleSeconds 뒤 시작으로, 이어서 관리자 화면(보정 선택·샘플 보기)
+  --back  카메라가 켜지길 기다리는 사이 '모양 다시' — 모양 화면에 남고 늦게 온 스트림은 꺼져야 함
 실패하면 어느 검사가 깨졌는지 출력하고 종료 코드 1.
 """
 
@@ -96,6 +97,15 @@ async def choose_to_camera(page, out, checks, shape="세로 4컷"):
     # 프레임 안에서 찍는다 — 활성 칸 안에 카메라가 있어야 합니다.
     checks.expect(
         await page.locator(".capture .stage-active video").count() == 1, "활성 칸 안에 카메라가 없음"
+    )
+    # 비디오가 활성 칸을 꽉 채워야 합니다 — 촬영(centerCrop)은 칸 비율로 자르므로, 테두리만큼
+    # 비디오가 작아지면 미리보기와 인화 구도가 어긋납니다.
+    cell = await page.locator(".capture .stage-active").bounding_box()
+    video = await page.locator(".capture .stage-active video.cam").first.bounding_box()
+    checks.expect(
+        abs(cell["width"] - video["width"]) < 1.5 and abs(cell["height"] - video["height"]) < 1.5,
+        f"카메라가 활성 칸을 못 채움: 칸 {cell['width']:.0f}×{cell['height']:.0f}"
+        f" vs 비디오 {video['width']:.0f}×{video['height']:.0f}",
     )
 
 
@@ -284,6 +294,61 @@ async def run_idle_admin(browser, url, out, tag, width, height):
     return checks
 
 
+# getUserMedia 를 1.4초 늦추고 만들어진 스트림을 기록합니다 — 기다리는 사이의 조작을 재현하려고.
+DELAYED_CAMERA = """
+(() => {
+  const devices = navigator.mediaDevices;
+  if (!devices) return;
+  const original = devices.getUserMedia.bind(devices);
+  window.__streams = [];
+  devices.getUserMedia = async (constraints) => {
+    await new Promise((resolve) => setTimeout(resolve, 1400));
+    const stream = await original(constraints);
+    window.__streams.push(stream);
+    return stream;
+  };
+})();
+"""
+LIVE_STREAMS = (
+    "() => (window.__streams || []).filter((s) => s.getTracks().some((t) => t.readyState === 'live')).length"
+)
+
+
+async def run_back(browser, url, out, tag, width, height):
+    """카메라가 켜지길 기다리는 1.4초 사이에 '모양 다시'를 누르면 모양 화면에 남아야 하고,
+    늦게 도착한 스트림은 꺼져야 합니다(표시등). 다시 고르면 정상적으로 촬영 화면, 켜진 스트림은 하나."""
+    checks = Checks(f"{tag}-back")
+    context = await browser.new_context(viewport={"width": width, "height": height})
+    errors = []
+    try:
+        await context.add_init_script(DELAYED_CAMERA)
+        page, errors = await open_app(context, url, {})
+        await page.click(".start-button")
+        await page.click(".shape-card:has-text('세로 4컷')")
+        await page.wait_for_selector(".frame-screen", timeout=5000)
+        await page.locator(".frame-pick").first.click()
+        await page.click(".topbar .ghost-button:has-text('모양 다시')")
+        await page.wait_for_selector(".shape", timeout=5000)
+        await page.wait_for_timeout(2500)
+        checks.expect(await page.locator(".shape").count() == 1, "뒤로 갔는데 모양 화면이 아님")
+        checks.expect(await page.locator(".capture").count() == 0, "뒤로 갔는데 촬영 화면으로 끌려감")
+        live = await page.evaluate(LIVE_STREAMS)
+        checks.expect(live == 0, f"뒤로 간 뒤에도 켜진 카메라 스트림 {live}개")
+        await snapshot(page, out, checks, "back-shape")
+        await page.click(".shape-card:has-text('세로 4컷')")
+        await page.wait_for_selector(".frame-screen", timeout=5000)
+        await page.locator(".frame-pick").first.click()
+        await page.wait_for_selector(".capture", timeout=10000)
+        await page.wait_for_selector("button:has-text('장 찍기'):not([disabled])", timeout=15000)
+        live = await page.evaluate(LIVE_STREAMS)
+        checks.expect(live == 1, f"다시 들어온 뒤 켜진 스트림 {live}개 (1개여야 함)")
+    except Exception as caught:  # noqa: BLE001
+        checks.failures.append(f"[{tag}-back] 흐름 중단: {type(caught).__name__}: {str(caught)[:160]}")
+    checks.expect(not errors, f"콘솔 오류: {errors[:3]}")
+    await context.close()
+    return checks
+
+
 async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("out")
@@ -293,6 +358,7 @@ async def main():
     parser.add_argument("--band", action="store_true")
     parser.add_argument("--exact", action="store_true")
     parser.add_argument("--idle", action="store_true")
+    parser.add_argument("--back", action="store_true")
     args = parser.parse_args()
     out = pathlib.Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -307,6 +373,8 @@ async def main():
         runner, launch_args = run_exact, FAKE_CAMERA + FAKE_PERMISSION
     elif args.idle:
         runner, launch_args = run_idle_admin, FAKE_CAMERA + FAKE_PERMISSION
+    elif args.back:
+        runner, launch_args = run_back, FAKE_CAMERA + FAKE_PERMISSION
     else:
         runner, launch_args = run_default, FAKE_CAMERA + FAKE_PERMISSION
 

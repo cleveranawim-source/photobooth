@@ -77,6 +77,8 @@ export default function App() {
   const glowVideoRef = useRef<HTMLVideoElement>(null);
   // 촬영 시퀀스의 세대 번호. 초기화 등으로 증가하면 진행 중이던 시퀀스가 스스로 중단됩니다.
   const runGenRef = useRef(0);
+  /** 카메라 시작 요청 번호 — 뒤로가기·초기화가 올리면 그 전에 시작된 요청의 결과는 버립니다. */
+  const startIdRef = useRef(0);
   // 마지막으로 합성한 조건. 같은 조건이면 결과 화면에서 다시 합성하지 않습니다.
   const composedSigRef = useRef("");
 
@@ -224,6 +226,8 @@ export default function App() {
   const stopCamera = camera.stop;
   const reset = useCallback(() => {
     runGenRef.current += 1; // 진행 중일 수 있는 촬영 시퀀스 중단
+    startIdRef.current += 1; // 카메라가 켜지길 기다리던 중이면 그 결과도 버립니다
+    setStarting(false);
     stopCamera(); // 환영 화면에서는 카메라 표시등이 꺼지도록
     setPhase("start");
     setComposite(null);
@@ -251,9 +255,14 @@ export default function App() {
     reset,
   );
 
-  /** 프레임을 고른 순간 카메라를 켭니다. 실패하면 화면은 그대로이고 오류만 보입니다. */
+  /**
+   * 프레임을 고른 순간 카메라를 켭니다. 실패하면 화면은 그대로이고 오류만 보입니다.
+   * 켜지길 기다리는 사이 뒤로 가거나 처음으로 돌아가면(startIdRef 가 바뀜) 늦게 온 결과는 버립니다 —
+   * 안 그러면 모양 화면에 있던 손님이 갑자기 촬영 화면으로 끌려갑니다.
+   */
   const startCamera = async () => {
     if (starting) return;
+    const id = ++startIdRef.current;
     setStarting(true);
     setError(null);
     setComposite(null);
@@ -263,13 +272,21 @@ export default function App() {
     setSelectedSlot(null);
     setShotIndex(0);
     try {
-      if (await camera.start()) {
+      const ok = await camera.start();
+      if (id !== startIdRef.current) return; // 기다리는 사이 떠났습니다(스트림은 훅이 껐습니다)
+      if (ok) {
         setPhase("camera");
         setStatus(READY_STATUS);
       }
     } finally {
-      setStarting(false);
+      if (id === startIdRef.current) setStarting(false);
     }
+  };
+  /** 기다리던 카메라 시작을 무효로 — 켜져 있던 스트림은 그대로 둡니다(다시 들어오면 권한 팝업 없이 재사용). */
+  const cancelStart = () => {
+    startIdRef.current += 1;
+    camera.cancelStart();
+    setStarting(false);
   };
 
   // ── 고르기 흐름: 시작 → 모양 → 프레임 → 촬영. 하나뿐인 단계는 건너뜁니다. ──
@@ -301,7 +318,13 @@ export default function App() {
 
   // 상단 왼쪽 되돌아가기 — 어디로 가는지가 곧 이름입니다. 하나뿐이라 건너뛴 단계로는 안 돌아갑니다.
   const back = (() => {
-    const toShape = { label: "모양 다시", go: () => setPhase("shape") };
+    const toShape = {
+      label: "모양 다시",
+      go: () => {
+        cancelStart();
+        setPhase("shape");
+      },
+    };
     const toStart = { label: "처음으로", go: reset };
     const beforeFrame = layouts.length === 1 ? toStart : toShape;
     if (phase === "shape") return toStart;

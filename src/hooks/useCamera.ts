@@ -7,11 +7,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
  */
 export function useCamera() {
   const streamRef = useRef<MediaStream | null>(null);
+  /** start() 세대 번호. stop()·cancelStart() 가 올리면 그보다 먼저 시작된 start 는 결과를 버립니다. */
+  const startGen = useRef(0);
   const [ready, setReady] = useState(false);
   const [resolution, setResolution] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const stop = useCallback(() => {
+    startGen.current += 1; // 기다리는 중인 start 가 있으면 그 스트림은 도착하는 대로 꺼집니다.
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
     setReady(false);
@@ -30,7 +33,17 @@ export function useCamera() {
 
   useEffect(() => () => stop(), [stop]);
 
+  /**
+   * 기다리는 중인 start() 를 무효로 만듭니다 — 켜진 스트림은 건드리지 않습니다.
+   * 프레임을 고르고 카메라가 켜지길 기다리다가 '모양 다시'로 돌아갈 때 씁니다: 그 뒤에 도착한
+   * 스트림은 start() 안에서 꺼지고 false 가 돌아와 화면이 촬영으로 끌려가지 않습니다.
+   */
+  const cancelStart = useCallback(() => {
+    startGen.current += 1;
+  }, []);
+
   const start = useCallback(async () => {
+    const gen = ++startGen.current;
     setError(null);
     if (!navigator.mediaDevices?.getUserMedia) {
       // 키오스크 앞 학생은 설정을 못 고칩니다 — 운영자를 부르는 문구로 둡니다.
@@ -42,19 +55,27 @@ export function useCamera() {
       const existing = streamRef.current;
       const live = !!existing && existing.getVideoTracks().some((track) => track.readyState === "live");
       if (!live) {
-        streamRef.current = await navigator.mediaDevices.getUserMedia({
+        const stream = await navigator.mediaDevices.getUserMedia({
           audio: false,
           // ideal 은 강제가 아니라 희망값입니다 — 못 주면 브라우저가 알아서 낮춰 줍니다.
           // 크게 부르는 이유: 세로 칸은 크롭 높이가 카메라 높이에 묶여서, 1080 이면
           // 단컷 폴라로이드·2×2 격자가 줌 없이도 이미 늘려 찍는 상태가 됩니다.
           video: { facingMode: "user", width: { ideal: 3840 }, height: { ideal: 2160 } },
         });
+        if (gen !== startGen.current) {
+          // 기다리는 사이 화면을 떠났거나(cancelStart/stop) 새 start 가 들어왔습니다.
+          // 늦게 온 스트림을 들고 있으면 표시등만 켜진 채 남으니 바로 끕니다.
+          stream.getTracks().forEach((track) => track.stop());
+          return false;
+        }
+        streamRef.current = stream;
       }
       const track = streamRef.current?.getVideoTracks()[0];
       const size = track?.getSettings();
       if (size?.width && size?.height) setResolution(`${size.width}×${size.height}`);
       return true;
     } catch (caught) {
+      if (gen !== startGen.current) return false; // 이미 떠난 화면의 오류는 보여주지 않습니다.
       setError(
         caught instanceof DOMException && caught.name === "NotAllowedError"
           ? "카메라 사용이 꺼져 있어요. 선생님을 불러주세요."
@@ -96,5 +117,5 @@ export function useCamera() {
     };
   }, []);
 
-  return { start, stop, attach, isLive, ready, setReady, resolution, error, setError };
+  return { start, stop, cancelStart, attach, isLive, ready, setReady, resolution, error, setError };
 }

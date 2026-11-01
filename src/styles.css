@@ -1590,10 +1590,13 @@ button:focus-visible {
   outline-offset: 4px;
 }
 
-/* 활성 칸 — 내 얼굴이 들어갈 자리. 테두리는 조각 단위라 배율과 함께 줄어듭니다. */
+/* 활성 칸 — 내 얼굴이 들어갈 자리. 테두리는 조각 단위라 배율과 함께 줄어듭니다.
+   border 가 아니라 안쪽 outline 입니다: border 로 두면 border-box 때문에 비디오가 12px 작아져
+   미리보기(cover)와 촬영(centerCrop, 칸 비율) 구도가 조금 어긋납니다. outline 은 자리를 차지하지 않습니다. */
 .stage-active {
   position: absolute;
   overflow: hidden;
-  border: 6px solid var(--accent);
+  outline: 6px solid var(--accent);
+  outline-offset: -6px;
   box-shadow: 0 0 0 10px rgba(255, 159, 28, 0.3);
 }
