@@ -20,7 +20,7 @@ import { buildTimelapse, startTimelapseCapture, type Clip } from "./lib/timelaps
 import { useCamera } from "./hooks/useCamera";
 import { useIdleReset, useWakeLock } from "./hooks/useKiosk";
 import { useTileImage } from "./hooks/useTileImage";
-import { captureSlots, swapSlots } from "./lib/stageGeometry";
+import { captureSlots, reviewSlots, swapSlots } from "./lib/stageGeometry";
 import { framePreviewKey, usePrintPreviews } from "./hooks/usePrintPreviews";
 import { StartScreen } from "./screens/StartScreen";
 import { ShapeScreen } from "./screens/ShapeScreen";
@@ -65,6 +65,8 @@ export default function App() {
   const [printed, setPrinted] = useState(false);
 
   const [shooting, setShooting] = useState(false);
+  // 카메라를 켜는 중(권한 프롬프트 포함). 이 동안 시작 버튼·프레임 카드를 잠가 스트림이 두 번 열리지 않게.
+  const [starting, setStarting] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [shotIndex, setShotIndex] = useState(0);
   const [flash, setFlash] = useState(false);
@@ -113,6 +115,8 @@ export default function App() {
   // ── 촬영 무대 ──
   // 촬영 칸 전부(조각 칸 + 여분)와, 찍힌 사진이 들어간 조각 그림. 그림은 합성기가 다시 그립니다.
   const slots = useMemo(() => captureSlots(layout, totalShots), [layout, totalShots]);
+  // 바꾸기 화면은 여분을 조각 옆에 두어 전부를 한눈에, 칸은 비교할 만큼 크게.
+  const reviewSlotList = useMemo(() => reviewSlots(layout, totalShots), [layout, totalShots]);
   const orderedShots = useMemo(() => order.map((index) => shots[index]), [order, shots]);
   // 촬영 중엔 찍은 순서대로, 바꾸기 화면에선 바꾼 순서대로 조각 칸을 채웁니다.
   const tileImages = useMemo(
@@ -249,6 +253,8 @@ export default function App() {
 
   /** 프레임을 고른 순간 카메라를 켭니다. 실패하면 화면은 그대로이고 오류만 보입니다. */
   const startCamera = async () => {
+    if (starting) return;
+    setStarting(true);
     setError(null);
     setComposite(null);
     setPrinted(false);
@@ -256,9 +262,13 @@ export default function App() {
     setOrder([]);
     setSelectedSlot(null);
     setShotIndex(0);
-    if (await camera.start()) {
-      setPhase("camera");
-      setStatus(READY_STATUS);
+    try {
+      if (await camera.start()) {
+        setPhase("camera");
+        setStatus(READY_STATUS);
+      }
+    } finally {
+      setStarting(false);
     }
   };
 
@@ -565,6 +575,8 @@ export default function App() {
           title={settings.title}
           tagline={settings.tagline}
           samples={samples}
+          error={error}
+          busy={starting}
           onStart={goShape}
           onAdmin={() => setPhase("admin")}
         />
@@ -578,6 +590,7 @@ export default function App() {
           layout={layout}
           previews={previews}
           error={error}
+          busy={starting}
           onPick={pickFrame}
         />
       )}
@@ -619,7 +632,7 @@ export default function App() {
           layout={layout}
           frame={frame}
           tileSrc={tileSrc}
-          slots={slots}
+          slots={reviewSlotList}
           shots={orderedShots}
           selected={selectedSlot}
           busy={composing}

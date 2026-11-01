@@ -14,18 +14,18 @@ export const SLOT_GAP = 20;
 const unique = (values: number[]) => [...new Set(values)].sort((a, b) => a - b);
 
 /**
- * 촬영 칸 전부 — 조각의 칸 뒤에 여분 칸을 같은 크기로 이어 붙인 목록.
- * 가로로 긴 조각(가로 띠)은 오른쪽으로, 나머지는 아래로 이어집니다. 이어 붙일 때
- * 조각 안 칸들의 열(또는 행) 위치를 그대로 써서, 2×2 격자의 여분은 두 칸씩 한 줄이 됩니다.
+ * 조각의 칸 뒤에 여분 칸을 같은 크기로 이어 붙입니다. 이어 붙일 때 조각 안 칸들의
+ * 열(또는 행) 위치를 그대로 써서, 2×2 격자의 여분은 두 칸씩 한 줄이 됩니다.
+ * side 가 "right" 면 오른쪽으로(칸들의 행을 따라), "below" 면 아래로(칸들의 열을 따라).
  */
-export function captureSlots(layout: Layout, total: number): LayoutCell[] {
+function appendExtras(layout: Layout, total: number, side: "right" | "below"): LayoutCell[] {
   const cells = layout.cells;
   const extras = total - cells.length;
   if (extras <= 0) return cells;
 
   const { w, h } = cells[0];
   const slots: LayoutCell[] = [...cells];
-  if (layout.tile.w > layout.tile.h) {
+  if (side === "right") {
     const rows = unique(cells.map((cell) => cell.y));
     const x0 = layout.tile.w + SLOT_GAP;
     for (let i = 0; i < extras; i += 1) {
@@ -41,6 +41,23 @@ export function captureSlots(layout: Layout, total: number): LayoutCell[] {
     }
   }
   return slots;
+}
+
+/**
+ * 촬영 칸 전부 — 여분이 필름 방향으로 이어집니다. 가로로 긴 조각(가로 띠)은 오른쪽으로,
+ * 나머지는 아래로. 활성 칸만 크게 보이면 되므로 내용이 길어져도 괜찮습니다(밀어서 보여줌).
+ */
+export function captureSlots(layout: Layout, total: number): LayoutCell[] {
+  return appendExtras(layout, total, layout.tile.w > layout.tile.h ? "right" : "below");
+}
+
+/**
+ * 바꾸기 화면의 칸 — 여분이 필름의 **옆**(다른 축)에 붙습니다. 세로 조각은 오른쪽 열,
+ * 가로 띠는 아래 행. 바꾸기 화면은 전부를 한눈에 비교해야 해서 통째로(fit) 보여주는데,
+ * 촬영처럼 아래로 길게 이으면 세로 4컷이 2472px 짜리가 되어 칸이 손톱만 해집니다.
+ */
+export function reviewSlots(layout: Layout, total: number): LayoutCell[] {
+  return appendExtras(layout, total, layout.tile.w > layout.tile.h ? "below" : "right");
 }
 
 /** 조각 사각형과 모든 칸을 감싸는 경계. */

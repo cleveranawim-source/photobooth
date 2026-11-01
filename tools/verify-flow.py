@@ -117,6 +117,10 @@ async def swap_and_finish(page, out, checks):
     await snapshot(page, out, checks, "swap")
     hits = page.locator(".stage-hit")
     checks.expect(await hits.count() == 6, f"바꾸기 화면 칸 수 {await hits.count()} ≠ 6")
+    # 얼굴을 비교할 수 있을 만큼은 커야 합니다(가로 ≥110px, 세로 ≥120px).
+    cell = await hits.first.bounding_box()
+    floor = 120 if checks.tag.startswith("port") else 110
+    checks.expect(cell["height"] >= floor, f"바꾸기 칸이 너무 작음: 높이 {cell['height']:.0f}px < {floor}px")
     first_extra = page.locator(".stage-extra img").first
     before = await first_extra.get_attribute("src")
     await hits.nth(0).click()
@@ -163,6 +167,8 @@ async def run_skip(browser, url, out, tag, width, height):
         await page.click(".start-button")
         await page.wait_for_selector(".capture", timeout=10000)
         checks.expect(await page.locator(".shape").count() == 0, "모양 화면이 떴음")
+        back_label = await page.locator(".topbar .ghost-button").first.inner_text()
+        checks.expect("처음으로" in back_label, f"건너뛴 단계로 되돌아가려 함: {back_label!r}")
         await snapshot(page, out, checks, "skip-camera")
     except Exception as caught:  # noqa: BLE001
         checks.failures.append(f"[{tag}-skip] 흐름 중단: {type(caught).__name__}: {str(caught)[:160]}")
@@ -188,6 +194,19 @@ async def run_deny(browser, url, out, tag, width, height):
         await snapshot(page, out, checks, "deny")
     except Exception as caught:  # noqa: BLE001
         checks.failures.append(f"[{tag}-deny] 흐름 중단: {type(caught).__name__}: {str(caught)[:160]}")
+    await context.close()
+
+    # 모양·프레임이 하나뿐이면 시작 버튼이 곧 카메라 — 거부 오류가 시작 화면에 보여야 합니다.
+    context = await browser.new_context(viewport={"width": width, "height": height})
+    try:
+        page, _ = await open_app(context, url, {"enabledLayouts": ["single"], "enabledFrames": ["arcade"]})
+        await page.click(".start-button")
+        error = page.locator(".start .error")
+        await error.wait_for(timeout=10000)
+        checks.expect("선생님" in (await error.inner_text()), "시작 화면 오류 문구가 운영자를 부르지 않음")
+        await snapshot(page, out, checks, "deny-skip")
+    except Exception as caught:  # noqa: BLE001
+        checks.failures.append(f"[{tag}-deny] 시작 화면 거부: {type(caught).__name__}: {str(caught)[:160]}")
     await context.close()
     return checks
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { findLayout } from "../config/layouts";
-import { SLOT_GAP, captureSlots, contentBounds, stageTransform, swapSlots } from "./stageGeometry";
+import { SLOT_GAP, captureSlots, contentBounds, reviewSlots, stageTransform, swapSlots } from "./stageGeometry";
 
 const strip2 = findLayout("strip2");
 const band2 = findLayout("band2");
@@ -88,5 +88,36 @@ describe("swapSlots", () => {
 
   it("같은 자리면 그대로", () => {
     expect(swapSlots([0, 1, 2], 2, 2)).toEqual([0, 1, 2]);
+  });
+});
+
+describe("reviewSlots", () => {
+  it("세로 조각은 여분을 오른쪽 열에 — 조각 칸의 y 를 그대로 써서 통째로 보인다", () => {
+    const slots = reviewSlots(strip2, 6);
+    expect(slots.slice(0, 4)).toEqual(strip2.cells);
+    expect(slots[4]).toEqual({ x: 600 + SLOT_GAP, y: 166, w: 520, h: 316 });
+    expect(slots[5]).toEqual({ x: 600 + SLOT_GAP, y: 500, w: 520, h: 316 });
+  });
+
+  it("가로 띠는 여분을 아래 행에", () => {
+    const slots = reviewSlots(band2, 6);
+    expect(slots[4]).toEqual({ x: 320, y: 600 + SLOT_GAP, w: 346, h: 440 });
+    expect(slots[5]).toEqual({ x: 684, y: 600 + SLOT_GAP, w: 346, h: 440 });
+  });
+
+  it("격자는 오른쪽 열, 칸 행 위치를 따라", () => {
+    const slots = reviewSlots(grid4, 6);
+    expect(slots[4]).toEqual({ x: 1200 + SLOT_GAP, y: 210, w: 515, h: 660 });
+    expect(slots[5]).toEqual({ x: 1200 + SLOT_GAP, y: 900, w: 515, h: 660 });
+  });
+
+  it("행(열)이 모자라면 다음 열(행)로 넘어간다", () => {
+    const slots = reviewSlots(single, 3);
+    expect(slots[1]).toEqual({ x: 1200 + SLOT_GAP, y: 190, w: 1020, h: 1020 });
+    expect(slots[2]).toEqual({ x: 1200 + SLOT_GAP + 1020 + SLOT_GAP, y: 190, w: 1020, h: 1020 });
+  });
+
+  it("여분이 없으면 조각 칸 그대로", () => {
+    expect(reviewSlots(strip2, 4)).toEqual(strip2.cells);
   });
 });

@@ -287,6 +287,10 @@ button:focus-visible {
   height: 40px;
 }
 
+.start .error {
+  max-width: 40ch;
+}
+
 .start-samples {
   display: flex;
   gap: 18px;

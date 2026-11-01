@@ -10,11 +10,13 @@ type Props = {
   previews: Record<string, string>;
   /** 카메라를 못 켠 이유. 프레임을 누르는 순간 카메라 권한을 묻기 때문에 여기서 보여줍니다. */
   error: string | null;
+  /** 카메라를 켜는 중 — 카드를 연타해도 스트림을 두 번 열지 않게 잠급니다. */
+  busy: boolean;
   onPick: (key: string) => void;
 };
 
 /** 3 프레임 — 큰 카드를 옆으로 넘기며 고릅니다. 누르면 바로 촬영 화면입니다. */
-export function FrameScreen({ frames, layout, previews, error, onPick }: Props) {
+export function FrameScreen({ frames, layout, previews, error, busy, onPick }: Props) {
   return (
     <main className="frame-screen no-print">
       <h2 className="ask">
@@ -31,6 +33,7 @@ export function FrameScreen({ frames, layout, previews, error, onPick }: Props) 
           <button
             key={item.key}
             className={`frame-pick${item.logo ? " event" : ""}`}
+            disabled={busy}
             onClick={() => onPick(item.key)}
           >
             {item.logo && <span className="event-badge">행사</span>}
