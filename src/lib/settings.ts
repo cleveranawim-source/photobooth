@@ -11,9 +11,10 @@ export const DEFAULT_SETTINGS: Settings = {
   caption: "오늘, 참 좋다",
   copies: 1,
   shootCount: 6,
-  // 2022년 이후 iPad(10세대·Air M2/M3·Pro M4)는 렌즈가 긴 변에 있습니다 — 가로로 세우면 위,
-  // 세로로 세우면(전원 버튼이 위일 때) 오른쪽. 짧은 변에 렌즈가 있는 예전 기종은 관리자가 바꿔 둡니다.
-  camEdges: { landscape: "top", portrait: "right" },
+  // 이 키오스크의 iPad 는 렌즈가 짧은 변에 있는 기종(2021년까지의 Pro·Air·일반 iPad)을 렌즈가 오른쪽으로
+  // 가게 가로로 세워 씁니다 — 가로 오른쪽, 세로 위. 렌즈가 긴 변에 있는 2022년 이후 기종(10세대·Air M2/M3·
+  // Pro M4)은 반대로 가로 위, 세로 옆이라 관리자가 바꿔 둡니다. 실기기에서 확인한 값입니다(2026-11-01).
+  camEdges: { landscape: "right", portrait: "top" },
   countdown: 5,
   idleSeconds: 90,
   enabledFrames: [],
@@ -47,7 +48,7 @@ const isCamEdge = (value: unknown): value is CamEdge =>
 
 /**
  * 방향별 렌즈 위치. 예전 저장본은 `camEdge` 하나뿐인데, 그때 관리자 설명이 "가로 거치" 기준이었으므로
- * 가로 값으로 옮기고 세로는 기본값을 씁니다.
+ * 가로 값으로 옮기고 세로는 기본값(위)을 씁니다.
  */
 function readCamEdges(saved: Record<string, unknown>): CamEdges {
   const fallback = DEFAULT_SETTINGS.camEdges;

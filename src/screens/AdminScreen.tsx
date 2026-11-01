@@ -224,8 +224,9 @@ export function AdminScreen({ settings, onSave, onClose, onSample }: Props) {
         <p className="admin-note">
           웹에서는 렌즈 위치를 알 수 없어 여기서 지정해 둡니다. 촬영 중 &lsquo;여기를 봐요!&rsquo;가 그쪽
           화면 끝에 붙어 아이들 시선이 렌즈로 향해요. iPad 를 돌리면 같은 렌즈가 다른 변으로 가므로
-          방향마다 따로 고릅니다 — 2022년 이후 iPad(10세대·Air M2/M3·Pro M4)는 가로일 때 위, 세로일 때
-          오른쪽이에요. 지금 이 iPad 는 {orientation === "portrait" ? "세로" : "가로"}로 서 있어요.
+          방향마다 따로 고릅니다. 렌즈가 짧은 변에 있는 iPad(2021년까지)는 세로일 때 위, 가로일 때
+          렌즈 쪽 옆이고, 긴 변에 있는 2022년 이후 iPad(10세대·Air M2/M3·Pro M4)는 가로일 때 위, 세로일 때
+          옆이에요. 지금 이 iPad 는 {orientation === "portrait" ? "세로" : "가로"}로 서 있어요.
         </p>
         {ORIENTATIONS.map((item) => (
           <div key={item.key} className={`edge-pick${orientation === item.key ? " current" : ""}`}>

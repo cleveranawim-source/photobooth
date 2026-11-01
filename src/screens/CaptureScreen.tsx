@@ -125,7 +125,7 @@ export function CaptureScreen({
   const countdownSize = Math.round(active.h * 0.4);
 
   return (
-    <main className={`capture no-print edge-${camEdge}`}>
+    <main className={`capture no-print edge-${camEdge}${shooting ? " shooting" : ""}`}>
       <div className="capture-stage">
         <PrintStage
           layout={layout}

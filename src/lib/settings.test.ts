@@ -17,17 +17,17 @@ describe("visibleFilters", () => {
 });
 
 describe("normalizeSettings — 렌즈 위치는 방향마다", () => {
-  it("기본값: 가로는 위, 세로는 오른쪽 (2022년 이후 iPad 의 가로 렌즈)", () => {
-    expect(normalizeSettings({}).camEdges).toEqual({ landscape: "top", portrait: "right" });
+  it("기본값: 가로는 오른쪽, 세로는 위 (짧은 변에 렌즈가 있는 iPad 를 렌즈가 오른쪽으로 가게 세운 키오스크)", () => {
+    expect(normalizeSettings({}).camEdges).toEqual({ landscape: "right", portrait: "top" });
   });
 
   it("예전 camEdge 하나만 저장돼 있으면 가로 값으로 옮기고 세로는 기본", () => {
-    expect(normalizeSettings({ camEdge: "left" }).camEdges).toEqual({ landscape: "left", portrait: "right" });
+    expect(normalizeSettings({ camEdge: "left" }).camEdges).toEqual({ landscape: "left", portrait: "top" });
   });
 
   it("새 모양은 그대로, 모르는 값만 기본으로", () => {
     expect(normalizeSettings({ camEdges: { landscape: "bottom", portrait: "left" } }).camEdges).toEqual({
-      landscape: "top",
+      landscape: "right",
       portrait: "left",
     });
   });

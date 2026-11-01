@@ -224,7 +224,8 @@ async def shoot(page, out, checks, name="countdown"):
     )
     badge = await page.locator(".look-here").bounding_box()
     viewport = (page.viewport_size["width"], page.viewport_size["height"])
-    edge = "top" if checks.tag.startswith("land") else "right"
+    # 기본값: 렌즈가 짧은 변에 있는 iPad 를 렌즈가 오른쪽으로 가게 세운 키오스크 — 가로 오른쪽, 세로 위.
+    edge = "right" if checks.tag.startswith("land") else "top"
     checks.expect(
         badge is not None and badge_matches_lens(badge, viewport, edge),
         f"'여기를 봐요!' 가 렌즈 쪽 화면 가장자리({edge})에 없음: {badge} / 뷰포트 {viewport}",
@@ -232,6 +233,22 @@ async def shoot(page, out, checks, name="countdown"):
     checks.expect(
         not await page.locator(".topbar .step-dots").is_visible(), "촬영 중 배지 뒤에 진행 점이 남아 있음"
     )
+    # 배지가 보이는 필터 칩을 덮으면 안 됩니다 — 가로에서 렌즈가 오른쪽이면 배지가 오른쪽 열 한가운데에 옵니다.
+    if badge is not None:
+        chips = page.locator(".capture .filter-chip")
+        for index in range(await chips.count()):
+            chip = chips.nth(index)
+            if not await chip.is_visible():
+                continue
+            box = await chip.bounding_box()
+            overlaps = (
+                box is not None
+                and badge["x"] < box["x"] + box["width"]
+                and box["x"] < badge["x"] + badge["width"]
+                and badge["y"] < box["y"] + box["height"]
+                and box["y"] < badge["y"] + badge["height"]
+            )
+            checks.expect(not overlaps, f"'여기를 봐요!' 가 필터 칩 {index + 1}번을 덮음: {badge} / {box}")
     await page.wait_for_selector(AFTER_SHOOT, timeout=60000)
 
 
