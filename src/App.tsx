@@ -32,7 +32,7 @@ import { AdminScreen } from "./screens/AdminScreen";
 import { Icon } from "./components/Icon";
 import { StepDots } from "./components/Steps";
 
-const READY_STATUS = "주황 칸에 내 얼굴이 들어가요. 준비되면 찍기를 눌러요";
+const READY_STATUS = "주황 칸에 얼굴을 맞춰요";
 
 export default function App() {
   const [settings, setSettings] = useState<Settings>(loadSettings);

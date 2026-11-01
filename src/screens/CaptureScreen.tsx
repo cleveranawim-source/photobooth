@@ -79,6 +79,7 @@ export function CaptureScreen({
 }: Props) {
   const filmCanvasRef = useRef<HTMLCanvasElement>(null);
   const active = slots[Math.min(activeIndex, slots.length - 1)];
+  const cellCount = layout.cells.length;
   // 모든 칸은 같은 크기라 비율도 하나입니다 — 촬영 크롭(centerCrop)과 같은 값.
   const ratio = active.w / active.h;
   useFilmPreview(videoRef, filmCanvasRef, film, ratio, zoom);
@@ -214,10 +215,36 @@ export function CaptureScreen({
       </div>
 
       <div className="capture-side">
-        {/* 촬영 동안 화면 낭독기도 진행을 들을 수 있게 aria-live 를 둡니다. */}
-        <p className="status" aria-live="polite">
-          {!ready && !shooting ? "카메라를 준비하는 중이에요…" : status}
-        </p>
+        {/* 준비 중엔 한 줄 설명, 찍는 동안엔 큰 진행 숫자·장수 막대·칸 안내. 두 상태의 높이를 같게
+            두어(min-height) 세로 모드에서 찍기를 누르는 순간 무대가 줄며 조각이 튀지 않게 합니다.
+            숫자는 찍히는 아이가 아니라 옆에서 기다리는 친구·선생님이 보는 것이라 움직임 없이 둡니다.
+            화면 낭독기도 진행을 들을 수 있게 aria-live 를 둡니다. */}
+        <div className="capture-head">
+          {shooting ? (
+            <>
+              <p className="shot-count">
+                <b>{Math.min(shotIndex + 1, total)}</b>
+                <span>/ {total}장</span>
+              </p>
+              <ol className="shot-bar" aria-hidden="true">
+                {slots.map((_, index) => (
+                  <li
+                    key={index}
+                    className={index < shotIndex ? "done" : index === shotIndex ? "now" : undefined}
+                    data-extra={index >= cellCount || undefined}
+                  />
+                ))}
+              </ol>
+              <p className="status" aria-live="polite">
+                {status}
+              </p>
+            </>
+          ) : (
+            <p className="status status-lead" aria-live="polite">
+              {ready ? status : "카메라를 준비하는 중이에요…"}
+            </p>
+          )}
+        </div>
 
         {/* 보정은 이름만 봐선 알 수 없어, 실제 엔진으로 입힌 얼굴 썸네일을 함께 보여줍니다. */}
         <div className="filter-bar" role="group" aria-label="사진 보정">
@@ -241,7 +268,7 @@ export function CaptureScreen({
 
         <button className="primary-button shoot" onClick={onShoot} disabled={!ready || shooting}>
           <Icon name="camera" />
-          {shooting ? `찍는 중 · ${shotIndex} / ${total}` : `${total}장 찍기`}
+          {shooting ? "찍는 중이에요" : `${total}장 찍기`}
         </button>
       </div>
     </main>

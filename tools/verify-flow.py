@@ -107,6 +107,8 @@ async def choose_to_camera(page, out, checks, shape="세로 4컷"):
         f"카메라가 활성 칸을 못 채움: 칸 {cell['width']:.0f}×{cell['height']:.0f}"
         f" vs 비디오 {video['width']:.0f}×{video['height']:.0f}",
     )
+    status = (await page.locator(".capture .status").inner_text()).strip()
+    checks.expect(status == "주황 칸에 얼굴을 맞춰요", f"준비 설명이 한 줄이 아님: {status!r}")
 
 
 async def shoot(page, out, checks, name="countdown"):
@@ -116,6 +118,20 @@ async def shoot(page, out, checks, name="countdown"):
     await snapshot(page, out, checks, name)
     checks.expect(
         await page.locator(".capture .stage-active .countdown").count() == 1, "카운트다운이 활성 칸 안에 없음"
+    )
+    count = page.locator(".capture .shot-count b")
+    checks.expect(
+        await count.count() == 1 and (await count.inner_text()).strip() == "1",
+        "촬영 중 큰 진행 숫자(1)가 없음",
+    )
+    bars = page.locator(".capture .shot-bar li")
+    first_class = (await bars.nth(0).get_attribute("class") or "") if await bars.count() else ""
+    checks.expect(
+        await bars.count() == 6 and "now" in first_class,  # 기본 shootCount 6
+        f"진행 막대가 6칸이 아니거나 첫 칸이 '지금' 표시가 아님: {await bars.count()}칸, {first_class!r}",
+    )
+    checks.expect(
+        "찍는 중이에요" in (await page.locator(".capture .shoot").inner_text()), "촬영 버튼이 '찍는 중이에요' 가 아님"
     )
     await page.wait_for_selector(AFTER_SHOOT, timeout=60000)
 
@@ -127,6 +143,28 @@ async def swap_and_finish(page, out, checks):
     await snapshot(page, out, checks, "swap")
     hits = page.locator(".stage-hit")
     checks.expect(await hits.count() == 6, f"바꾸기 화면 칸 수 {await hits.count()} ≠ 6")
+    print_tag = page.locator(".swap .stage-caption.print")
+    extra_tag = page.locator(".swap .stage-caption.extra")
+    checks.expect(
+        await print_tag.count() == 1 and "인쇄할 사진" in (await print_tag.inner_text()),
+        "바꾸기 화면에 '인쇄할 사진' 표식이 없음",
+    )
+    checks.expect(
+        await extra_tag.count() == 1 and "여분 2장" in (await extra_tag.inner_text()),
+        "바꾸기 화면에 '바꿀 수 있는 여분 2장' 표식이 없음",
+    )
+    checks.expect(await page.locator(".swap .stage-badge").count() == 2, "여분 번호 배지가 2개가 아님")
+    stage = await page.locator(".swap-stage").bounding_box()
+    for tag in (print_tag, extra_tag):
+        if await tag.count() != 1:
+            continue
+        box = await tag.bounding_box()
+        inside = (
+            box["y"] >= stage["y"] - 0.5
+            and box["x"] >= stage["x"] - 0.5
+            and box["x"] + box["width"] <= stage["x"] + stage["width"] + 0.5
+        )
+        checks.expect(inside, f"표식이 무대 밖으로 나감: {box}")
     # 얼굴을 비교할 수 있을 만큼은 커야 합니다(가로 ≥110px, 세로 ≥120px).
     cell = await hits.first.bounding_box()
     floor = 120 if checks.tag.startswith("port") else 110
@@ -143,8 +181,22 @@ async def swap_and_finish(page, out, checks):
     await page.wait_for_selector(".result", timeout=15000)
     await page.wait_for_timeout(400)
     await snapshot(page, out, checks, "result")
+    hero = page.locator(".result .hero-action")
+    save = page.locator(".result .action-button:has-text('내 폰에 저장')")
+    minor = page.locator(".result .result-minor .pill-button")
+    if await hero.count() == 1 and await save.count() == 1 and await minor.count() >= 1:
+        checks.expect("인쇄하기" in (await hero.inner_text()), "가장 큰 버튼이 인쇄하기가 아님")
+        h, s_, m = (await hero.bounding_box())["height"], (await save.bounding_box())["height"], (await minor.first.bounding_box())["height"]
+        checks.expect(h > s_ > m, f"버튼 위계가 크기로 안 드러남: 인쇄 {h:.0f} / 저장 {s_:.0f} / 보조 {m:.0f}")
+    else:
+        checks.expect(False, "완성 화면에 hero-action / 저장 / result-minor 알약이 갖춰지지 않음")
     await page.click("button:has-text('인쇄하기')")
     await page.wait_for_selector(".done-toast", timeout=5000)
+    if await page.locator(".result .hero-action").count() == 1:
+        checks.expect(
+            "내 폰에 저장" in (await page.locator(".result .hero-action").inner_text()),
+            "인쇄 뒤 가장 큰 자리가 저장으로 넘어가지 않음",
+        )
     await snapshot(page, out, checks, "result-printed")
     await page.wait_for_selector(".idle-note", timeout=25000)
     await page.wait_for_timeout(1100)

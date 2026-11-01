@@ -621,6 +621,78 @@ button:focus-visible {
   color: var(--ink);
 }
 
+/* 상태 블록 — 준비 중엔 한 줄 설명, 찍는 동안엔 큰 진행 숫자·장수 막대·칸 안내.
+   두 상태의 높이를 같게(min-height) 둬야 세로 모드에서 찍기를 누르는 순간 무대가 튀지 않습니다. */
+.capture-head {
+  display: grid;
+  gap: 8px;
+  align-content: end;
+  min-height: 118px;
+}
+
+.capture-head .status {
+  font-size: 18px;
+}
+
+.capture-head .status-lead {
+  font-size: 24px;
+}
+
+.shot-count {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  line-height: 1;
+  color: var(--ink);
+}
+
+.shot-count b {
+  font-size: 64px;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.shot-count span {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--sub);
+}
+
+.shot-bar {
+  display: flex;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.shot-bar li {
+  flex: 1;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--mat);
+}
+
+/* 여분 칸은 점선 — 조각에 안 들어갈 수도 있는 장수라는 뜻 */
+.shot-bar li[data-extra] {
+  background: transparent;
+  border: 2px dashed var(--mat);
+}
+
+.shot-bar li.done,
+.shot-bar li[data-extra].done {
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.shot-bar li.now,
+.shot-bar li[data-extra].now {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
 /* 활성 칸 안 — 카메라·필름 캔버스·플래시·카운트다운이 들어가는 상자 */
 .cell-touch {
   position: absolute;
@@ -1074,31 +1146,32 @@ button:focus-visible {
 }
 
 /* 사진은 그대로 두고 겉모습만 바꾸는 패널을 여는 버튼 */
-.dress-toggle {
+/* 보조 동작 줄 — 꾸미기·처음부터. 크기 셋(인쇄 > 저장 > 보조) 중 가장 작은 단계. */
+.result-minor {
   display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.pill-button {
+  display: inline-flex;
   align-items: center;
-  gap: 9px;
-  padding: 13px 18px;
-  min-height: 60px;
-  border-radius: var(--radius);
-  border: 2px dashed var(--edge);
-  font-size: 16px;
-  font-weight: 700;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1.5px solid var(--edge);
+  background: var(--surface);
   color: var(--ink);
-  text-align: left;
+  font-size: 15px;
+  font-weight: 700;
 }
 
-.dress-toggle svg {
-  width: 19px;
-  height: 19px;
+.pill-button svg {
+  width: 16px;
+  height: 16px;
   color: var(--accent-ink);
-}
-
-.dress-toggle small {
-  margin-left: auto;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--sub);
 }
 
 /* 꾸미기 시트 — 아래에서 올라와 사진을 밀어내지 않습니다. */
@@ -1245,10 +1318,6 @@ button:focus-visible {
   transition: width 1s linear;
 }
 
-.result-actions .restart {
-  align-self: flex-start;
-}
-
 .result-actions {
   display: flex;
   flex-direction: column;
@@ -1267,10 +1336,12 @@ button:focus-visible {
   color: var(--sub);
 }
 
+/* 완성 버튼은 크기 셋 — 가장 큰 하나(hero-action: 인쇄, 인쇄 뒤엔 저장) > 보통 > 보조 알약(.pill-button). */
 .action-button {
   display: flex;
   align-items: center;
   gap: 13px;
+  min-height: 70px;
   padding: 15px 18px;
   border-radius: var(--radius);
   border: 2px solid var(--edge);
@@ -1300,14 +1371,30 @@ button:focus-visible {
   color: var(--sub);
 }
 
-.action-button.print-action {
+.action-button.hero-action {
+  min-height: 108px;
+  padding: 22px 26px;
+  gap: 16px;
   background: var(--accent);
   border-color: var(--accent);
   color: var(--on-accent);
 }
 
-.action-button.print-action svg,
-.action-button.print-action small {
+.action-button.hero-action svg {
+  width: 34px;
+  height: 34px;
+}
+
+.action-button.hero-action strong {
+  font-size: 26px;
+}
+
+.action-button.hero-action small {
+  font-size: 15px;
+}
+
+.action-button.hero-action svg,
+.action-button.hero-action small {
   color: inherit;
 }
 
@@ -1459,14 +1546,10 @@ button:focus-visible {
   .result-actions .result-hint,
   .result-actions .done-toast,
   .result-actions .clip-pending,
-  .result-actions .dress-toggle,
+  .result-actions .hero-action,
+  .result-actions .result-minor,
   .result-actions .idle-note {
     grid-column: 1 / -1;
-  }
-
-  .result-actions .restart {
-    grid-column: 1 / -1;
-    justify-self: start;
   }
 
   .sheet-row {
@@ -1569,6 +1652,44 @@ button:focus-visible {
   height: 100%;
   object-fit: cover;
   display: block;
+}
+
+/* 바꾸기 표식 — 변환 바깥(화면 px)에 그려 배율과 무관하게 같은 글자 크기. 누름은 아래 칸으로 통과. */
+.stage-caption {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  padding: 7px 16px;
+  border-radius: 999px;
+  font-size: 16px;
+  font-weight: 800;
+  white-space: nowrap;
+  box-shadow: 0 3px 10px rgba(18, 58, 92, 0.18);
+  pointer-events: none;
+  z-index: 3;
+}
+
+.stage-caption.print {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.stage-caption.extra {
+  background: var(--ink);
+  color: #fff;
+}
+
+/* 여분 번호 배지 — 사진이 들어온 뒤에도 남아 어느 여분인지 알 수 있게 */
+.stage-badge {
+  position: absolute;
+  transform: translateY(-100%);
+  padding: 3px 9px;
+  border-radius: 0 8px 0 0;
+  font-size: 13px;
+  font-weight: 800;
+  background: rgba(18, 58, 92, 0.85);
+  color: #fff;
+  pointer-events: none;
+  z-index: 3;
 }
 
 /* 칸마다 올리는 투명 버튼(바꾸기 화면) */

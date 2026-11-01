@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { findLayout } from "../config/layouts";
-import { SLOT_GAP, captureSlots, contentBounds, reviewSlots, stageTransform, swapSlots } from "./stageGeometry";
+import {
+  SLOT_GAP,
+  captureSlots,
+  contentBounds,
+  reviewSlots,
+  slotScreenRect,
+  stageTransform,
+  swapSlots,
+} from "./stageGeometry";
 
 const strip2 = findLayout("strip2");
 const band2 = findLayout("band2");
@@ -119,5 +127,33 @@ describe("reviewSlots", () => {
 
   it("여분이 없으면 조각 칸 그대로", () => {
     expect(reviewSlots(strip2, 4)).toEqual(strip2.cells);
+  });
+});
+
+describe("stageTransform headroom", () => {
+  const area = { w: 760, h: 700 };
+
+  it("headroom 만큼 위를 비우고 나머지 높이에 맞춘다 — 표식이 조각 위에 올라갈 자리", () => {
+    const slots = reviewSlots(strip2, 6);
+    const bounds = contentBounds(strip2, slots); // 1140×1800, 높이로 맞는 내용
+    const plain = stageTransform(area, bounds, null);
+    const t = stageTransform(area, bounds, null, 0.4, 44);
+    expect(plain.scale).toBeCloseTo(700 / 1800, 4);
+    expect(t.scale).toBeCloseTo((700 - 44) / 1800, 4);
+    expect(t.y).toBeCloseTo(44, 1);
+    expect(t.x).toBeCloseTo((760 - 1140 * t.scale) / 2, 1);
+  });
+
+  it("활성 칸 40% 규칙도 headroom 을 뺀 높이 기준", () => {
+    const slots = captureSlots(strip2, 6);
+    const t = stageTransform(area, contentBounds(strip2, slots), slots[0], 0.4, 100);
+    expect(t.scale).toBeCloseTo((0.4 * 600) / 316, 4);
+  });
+});
+
+describe("slotScreenRect", () => {
+  it("변환을 적용한 화면 px 사각형", () => {
+    const t = { scale: 0.5, x: 100, y: 44 };
+    expect(slotScreenRect(t, { x: 40, y: 80, w: 520, h: 316 })).toEqual({ x: 120, y: 84, w: 260, h: 158 });
   });
 });

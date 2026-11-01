@@ -52,7 +52,7 @@ npm run dev
 
 ```bash
 npm test
-python3 tools/verify-flow.py /tmp/verify   # dev 서버가 떠 있어야 합니다. 변형: --skip --deny --band --exact --idle
+python3 tools/verify-flow.py /tmp/verify   # dev 서버가 떠 있어야 합니다. 변형: --skip --deny --band --exact --idle --back
 ```
 
 배포용 빌드:

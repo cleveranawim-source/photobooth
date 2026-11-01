@@ -85,15 +85,20 @@ export type StageTransform = { scale: number; x: number; y: number };
  * 세로 4컷을 통째로 넣으면 칸 하나가 손바닥만 해져 표정이 안 보이기 때문입니다.
  * 그 배율에서 내용이 영역을 넘치는 축은 활성 칸의 중심이 영역 중심에 오도록 밀고,
  * 넘치지 않는 축은 가운데 정렬합니다. 활성 칸이 없으면 통째로 맞춰(fit) 가운데 둡니다.
+ *
+ * headroom(화면 px)은 영역 위쪽에 비워 두는 띠입니다 — 바꾸기 화면의 "인쇄할 사진" 같은
+ * 표식이 조각 위 가장자리에 걸터앉을 자리. 내용은 그 아래 남은 높이에 맞춥니다.
  */
 export function stageTransform(
   area: { w: number; h: number },
   bounds: Rect,
   active: Rect | null,
   minCellFraction = 0.4,
+  headroom = 0,
 ): StageTransform {
-  const fit = Math.min(area.w / bounds.w, area.h / bounds.h);
-  const scale = active ? Math.max(fit, (minCellFraction * area.h) / active.h) : fit;
+  const inner = { w: area.w, h: area.h - headroom };
+  const fit = Math.min(inner.w / bounds.w, inner.h / bounds.h);
+  const scale = active ? Math.max(fit, (minCellFraction * inner.h) / active.h) : fit;
 
   const place = (areaSize: number, boundsStart: number, boundsSize: number, activeCenter: number) => {
     const contentSize = boundsSize * scale;
@@ -103,8 +108,18 @@ export function stageTransform(
 
   return {
     scale,
-    x: place(area.w, bounds.x, bounds.w, active ? active.x + active.w / 2 : 0),
-    y: place(area.h, bounds.y, bounds.h, active ? active.y + active.h / 2 : 0),
+    x: place(inner.w, bounds.x, bounds.w, active ? active.x + active.w / 2 : 0),
+    y: headroom + place(inner.h, bounds.y, bounds.h, active ? active.y + active.h / 2 : 0),
+  };
+}
+
+/** 조각 좌표의 사각형이 변환 뒤 화면에서 차지하는 px 사각형(무대 좌상단 기준). */
+export function slotScreenRect(transform: StageTransform, rect: Rect): Rect {
+  return {
+    x: transform.x + rect.x * transform.scale,
+    y: transform.y + rect.y * transform.scale,
+    w: rect.w * transform.scale,
+    h: rect.h * transform.scale,
   };
 }
 

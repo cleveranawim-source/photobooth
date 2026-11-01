@@ -41,6 +41,7 @@ export function SwapScreen({ layout, frame, tileSrc, slots, shots, selected, bus
           selectedIndex={selected}
           onSlotTap={onTap}
           onSlotHold={setZoomed}
+          labels={{ tile: "인쇄할 사진", extras: `바꿀 수 있는 여분 ${extras}장` }}
         />
       </div>
 

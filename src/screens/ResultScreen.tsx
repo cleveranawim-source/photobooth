@@ -59,7 +59,7 @@ export function ResultScreen({
   const cutHint = twoTiles ? "가운데 선을 따라 자르면 두 장이 돼요." : null;
 
   const printButton = (
-    <button className={`action-button${printed ? "" : " print-action"}`} onClick={onPrint}>
+    <button className={`action-button${printed ? "" : " hero-action"}`} onClick={onPrint}>
       <Icon name="print" />
       <span>
         <strong>{printed ? "한 장 더 인쇄" : `인쇄하기${copies > 1 ? ` (${copies}장)` : ""}`}</strong>
@@ -69,7 +69,7 @@ export function ResultScreen({
   );
 
   const shareButton = (
-    <button className={`action-button${printed ? " print-action" : ""}`} onClick={onShare}>
+    <button className={`action-button${printed ? " hero-action" : ""}`} onClick={onShare}>
       <Icon name="download" />
       <span>
         <strong>내 폰에 저장</strong>
@@ -132,19 +132,20 @@ export function ResultScreen({
           </p>
         )}
 
-        {/* 사진은 그대로 두고 겉모습만 바꿉니다 — 다시 찍을 필요가 없습니다. */}
-        <button
-          className="dress-toggle"
-          aria-expanded={dressing}
-          onClick={() => setDressing((previous) => !previous)}
-        >
-          <Icon name="sparkle" /> 문구·프레임 바꾸기
-          <small>프레임·모양·문구만 바꿔요</small>
-        </button>
-
-        <button className="ghost-button restart" onClick={onRestart}>
-          <Icon name="redo" /> 처음부터 다시
-        </button>
+        {/* 보조 동작은 작은 알약 한 줄 — 크기 셋(인쇄 > 저장 > 보조)으로 무엇을 먼저 누르는지 보입니다.
+            꾸미기는 사진은 그대로 두고 겉모습만 바꿉니다 — 다시 찍을 필요가 없습니다. */}
+        <div className="result-minor">
+          <button
+            className="pill-button dress-toggle"
+            aria-expanded={dressing}
+            onClick={() => setDressing((previous) => !previous)}
+          >
+            <Icon name="sparkle" /> 문구·프레임 바꾸기
+          </button>
+          <button className="pill-button restart" onClick={onRestart}>
+            <Icon name="redo" /> 처음부터 다시
+          </button>
+        </div>
 
         {/* 조용히 사라지던 90초 — 마지막 구간엔 남은 시간을 보여주고 누르면 계속되게 합니다. */}
         {secondsLeft !== null && (
