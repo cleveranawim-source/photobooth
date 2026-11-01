@@ -8,6 +8,7 @@ import { maxLosslessZoom, sleep } from "./lib/canvas";
 import { bakeShot, captureVideoFrame } from "./lib/capture";
 import { composePrint, makeSampleShots } from "./lib/compose";
 import { glowFilterCss, previewFilterCss } from "./lib/filterEngine";
+import { buildLut3d } from "./lib/filmGrade";
 import { printImage, shareClip, shareImage } from "./lib/share";
 import {
   loadSettings,
@@ -108,6 +109,27 @@ export default function App() {
   useEffect(() => {
     if (!filters.some((item) => item.key === filterKey)) setFilterKey(filters[0]?.key ?? "none");
   }, [filters, filterKey]);
+  // 룩업표 예열 — 룩마다 3만 6천 색을 한 번 구워야 해서, 촬영 화면에서 처음 쓰는 순간 몰아서 굽지 않도록
+  // 한가할 때 미리 굽습니다(캐시되므로 이후엔 공짜). 손님이 오기 전 시작 화면에서 끝납니다.
+  useEffect(() => {
+    const pending = filters.map((item) => item.film).filter((film): film is NonNullable<typeof film> => !!film);
+    let handle = 0;
+    // requestIdleCallback 은 iPadOS 에서 최근에야 들어와, 없으면 짧은 타이머로 대신합니다.
+    const hasIdle = typeof window.requestIdleCallback === "function";
+    const schedule = (work: () => void) => (hasIdle ? window.requestIdleCallback(work) : window.setTimeout(work, 50));
+    const step = () => {
+      const next = pending.shift();
+      if (!next) return;
+      buildLut3d(next);
+      handle = schedule(step);
+    };
+    handle = schedule(step);
+    return () => {
+      pending.length = 0;
+      if (hasIdle) window.cancelIdleCallback(handle);
+      else window.clearTimeout(handle);
+    };
+  }, [filters]);
   // 행사 로고가 든 프레임이 맨 앞 — 오늘 행사용으로 켜 둔 것이 손님 눈에 먼저 들어오게.
   const orderedFrames = useMemo(
     () => [...frames.filter((item) => item.logo), ...frames.filter((item) => !item.logo)],

@@ -99,11 +99,19 @@ export type Layout = {
   cut: "vertical" | "horizontal" | null;
 };
 
+/** 색조 띠 — 보정 앱의 HSL 패널과 같은 여덟 구간. 살색은 orange(주황)에 들어갑니다. */
+export type HueBand = "red" | "orange" | "yellow" | "green" | "aqua" | "blue" | "purple" | "magenta";
+
+/** 한 색조 띠의 조정. hue 는 도(°) 이동, sat·lum 은 -1~1. */
+export type HslTweak = { hue?: number; sat?: number; lum?: number };
+
 /**
- * 필름 계조. 채널마다 제어점(0~1)을 두고 그 사이를 선형 보간한 톤커브입니다.
- * CSS 필터는 전부 선형이라 **들린 검정**이나 **채널별 곡선**을 만들 수 없어서 따로 둡니다.
- * 제어점의 뜻은 SVG feComponentTransfer 의 tableValues 와 같습니다 — 그래서 미리보기와
- * 결과물이 근사가 아니라 정확히 같은 값을 냅니다.
+ * 룩(색 보정) 정의. 보정 앱의 "프리셋"에 해당하며, 전부 lib/filmGrade 가 3D 룩업표로 구워
+ * 미리보기와 결과물에 **같은 표**를 씁니다 — 그래서 화면에서 본 색이 그대로 인화됩니다.
+ *
+ * 적용 순서: 색조별 조정(hsl) → 채도·생동감 → 채널별 톤커브(r·g·b) → 분리 톤(split) → 페이드.
+ * 톤커브는 제어점(0~1, 같은 간격) 사이를 **부드러운 단조 곡선**으로 잇습니다 — 선형으로 이으면
+ * 제어점마다 계조가 꺾여 피부 같은 완만한 면에 띠가 집니다.
  */
 export type FilmGrade = {
   r: number[];
@@ -111,8 +119,20 @@ export type FilmGrade = {
   b: number[];
   /** 채도 (1 = 그대로). 커브보다 먼저 적용됩니다. */
   saturation?: number;
+  /** 생동감(-1~1). 채도가 낮은 색을 더 많이 올리고 살색은 덜 건드립니다 — 채도보다 티가 덜 나게 쨍해집니다. */
+  vibrance?: number;
+  /** 색조별 조정 — 예: 초록을 빼고 살색을 밝히기. */
+  hsl?: Partial<Record<HueBand, HslTweak>>;
+  /** 분리 톤 — 그림자·밝은 부분을 서로 다른 색조(°)로 물들입니다. 세기 0~1. */
+  split?: { shadows?: [hue: number, amount: number]; highlights?: [hue: number, amount: number] };
+  /** 페이드(0~1) — 검정을 부드럽게 들어 올려 바랜 느낌. 흰색은 그대로 둡니다. */
+  fade?: number;
+  /** 비네트(0~1) — 가장자리를 살짝 어둡게. 시선을 가운데(얼굴)로 모읍니다. */
+  vignette?: number;
   /** 그레인 세기(0~1). 미리보기엔 안 보이는 미세 질감이라 결과물에만 넣습니다. */
   grain?: number;
+  /** 그레인 알갱이 크기(px, 결과물 기준). 기본 1.6 — 1 이면 디지털 노이즈처럼 보입니다. */
+  grainSize?: number;
 };
 
 export type FilterDef = {
@@ -149,7 +169,7 @@ export type Settings = {
   /** 손님에게 보여줄 프레임 목록(비우면 전부) */
   enabledFrames: string[];
   enabledLayouts: string[];
-  /** 손님에게 보여줄 필터 목록(비우면 기본 일곱 — 원본·따뜻한 날·팝·노을·블루 아워·빈티지·흑백) */
+  /** 손님에게 보여줄 필터 목록(비우면 기본 여덟 — 원본·화사·따뜻한 날·여름·팝·노을·빈티지·흑백) */
   enabledFilters: string[];
   defaultFrame: string;
   defaultLayout: string;

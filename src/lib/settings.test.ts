@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_QUICK_FILTERS, DEFAULT_SETTINGS, normalizeSettings, visibleFilters } from "./settings";
 
 describe("visibleFilters", () => {
-  it("비우면 기본 일곱 — 원본·따뜻한 날·팝·노을·블루 아워·빈티지·흑백 순", () => {
+  it("비우면 기본 여덟 — 원본·화사·따뜻한 날·여름·팝·노을·빈티지·흑백 순", () => {
     const names = visibleFilters({ ...DEFAULT_SETTINGS, enabledFilters: [] }).map((filter) => filter.name);
-    expect(names).toEqual(["원본", "따뜻한 날", "팝", "노을", "블루 아워", "빈티지", "흑백"]);
-    expect(DEFAULT_QUICK_FILTERS).toEqual(["none", "warmDay", "pop", "golden", "blueHour", "vintage", "mono"]);
+    expect(names).toEqual(["원본", "화사", "따뜻한 날", "여름", "팝", "노을", "빈티지", "흑백"]);
+    expect(DEFAULT_QUICK_FILTERS).toEqual(["none", "glow", "warmDay", "summer", "pop", "golden", "vintage", "mono"]);
   });
 
   it("고른 것만, FILTERS 순서로", () => {

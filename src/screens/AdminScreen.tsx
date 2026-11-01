@@ -316,7 +316,7 @@ export function AdminScreen({ settings, onSave, onClose, onSample }: Props) {
       <section className="admin-group">
         <h3>손님에게 보여줄 필터</h3>
         <p className="admin-note">
-          아무것도 고르지 않으면 원본·따뜻한 날·팝·노을·블루 아워·빈티지·흑백 일곱을 보여줍니다. 촬영 전에
+          아무것도 고르지 않으면 원본·화사·따뜻한 날·여름·팝·노을·빈티지·흑백 여덟을 보여줍니다. 촬영 전에
           고르고, 완성 화면에서도 바꿀 수 있어요. 많이 켤수록 촬영 화면이 복잡해져요.
         </p>
         <div className="chip-list tight">

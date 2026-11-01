@@ -29,10 +29,10 @@ export const DEFAULT_SETTINGS: Settings = {
 };
 
 /**
- * 관리자가 필터를 따로 고르지 않았을 때 보이는 일곱. 은은한 것(맑게·소프트 필름·크림)은 빼고
+ * 관리자가 필터를 따로 고르지 않았을 때 보이는 여덟. 은은한 것(맑게·크림·필름·블루 아워)은 빼고
  * 한눈에 다른 것들로 — 손님이 "필터가 있긴 한가" 하지 않도록. 순서는 FILTERS 를 따릅니다.
  */
-export const DEFAULT_QUICK_FILTERS = ["none", "warmDay", "pop", "golden", "blueHour", "vintage", "mono"];
+export const DEFAULT_QUICK_FILTERS = ["none", "glow", "warmDay", "summer", "pop", "golden", "vintage", "mono"];
 
 const clampNumber = (value: unknown, min: number, max: number, fallback: number) => {
   const number = typeof value === "number" ? value : Number(value);
