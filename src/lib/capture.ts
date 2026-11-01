@@ -1,6 +1,13 @@
 import type { FilterDef } from "../types";
-import { centerCrop } from "./canvas";
+import { centerCrop, loadImage } from "./canvas";
 import { bakePreviewLook, supportsCanvasFilter } from "./filterEngine";
+
+export type CapturedShot = {
+  /** 보정 전 원본 — 완성 화면에서 필터를 바꿀 때 여기서 다시 굽습니다. */
+  raw: string;
+  /** 필터·피부 보정을 입힌 사진 — 무대·바꾸기·합성이 쓰는 쪽. */
+  baked: string;
+};
 
 /**
  * 라이브 프레임 한 장을 인화 칸 비율로 중앙 크롭 + 좌우 반전해 캔버스로 만듭니다(필터 미적용).
@@ -100,7 +107,10 @@ function nextVideoFrame(video: HTMLVideoElement) {
   });
 }
 
-/** 짧은 순간 여러 프레임을 잡아 가장 선명한(덜 흔들린) 것을 고릅니다 — 모션 블러 완화. */
+/**
+ * 짧은 순간 여러 프레임을 잡아 가장 선명한(덜 흔들린) 것을 고릅니다 — 모션 블러 완화.
+ * 원본도 같이 돌려줍니다: 필터는 찍은 뒤에도 바꿀 수 있어야 해서(완성 화면), 보정 전 사진을 간직합니다.
+ */
 export async function captureVideoFrame(
   video: HTMLVideoElement,
   filter: FilterDef,
@@ -110,7 +120,7 @@ export async function captureVideoFrame(
   skinSmooth = 0,
   /** 핀치 줌 배율(1 = 기본) */
   zoom = 1,
-) {
+): Promise<CapturedShot> {
   let best: HTMLCanvasElement | null = null;
   let bestScore = -1;
   const attempts = 3;
@@ -123,6 +133,25 @@ export async function captureVideoFrame(
     }
     if (i < attempts - 1) await nextVideoFrame(video);
   }
-  const canvas = bakePreviewLook(best as HTMLCanvasElement, filter, skinSmooth);
-  return canvas.toDataURL("image/jpeg", 0.92);
+  const sharp = best as HTMLCanvasElement;
+  // bakePreviewLook 은 원본 캔버스를 제자리에서 고치므로 그 전에 떠 둡니다. 다시 구울 때 한 번 더
+  // JPEG 를 거치므로 원본은 조금 높은 품질로.
+  const raw = sharp.toDataURL("image/jpeg", 0.95);
+  const canvas = bakePreviewLook(sharp, filter, skinSmooth);
+  return { raw, baked: canvas.toDataURL("image/jpeg", 0.92) };
+}
+
+/**
+ * 원본 사진에 필터·피부 보정을 다시 입힙니다 — 완성 화면에서 필터를 바꿀 때.
+ * 촬영 때와 같은 bakePreviewLook 을 타므로, 처음부터 그 필터로 찍은 것과 같은 결과입니다.
+ */
+export async function bakeShot(raw: string, filter: FilterDef, skinSmooth = 0): Promise<string> {
+  const image = await loadImage(raw);
+  const canvas = document.createElement("canvas");
+  canvas.width = image.naturalWidth;
+  canvas.height = image.naturalHeight;
+  const context = canvas.getContext("2d", { alpha: false, willReadFrequently: !supportsCanvasFilter });
+  if (!context) throw new Error("사진을 만들 수 없습니다.");
+  context.drawImage(image, 0, 0);
+  return bakePreviewLook(canvas, filter, skinSmooth).toDataURL("image/jpeg", 0.92);
 }

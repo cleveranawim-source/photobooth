@@ -10,7 +10,7 @@ dev 서버(`npm run dev`)가 떠 있어야 합니다. chromium 의 가짜 카메
   --deny  카메라 권한 거부 — 프레임 화면에 '선생님을 불러주세요' 오류가 보여야 함
   --band  가로 4컷 띠 — 여분 칸이 조각 오른쪽에 붙고 활성 칸이 가로로 밀리는지(스크린샷)
   --exact 촬영 장수 = 칸 수 — 바꾸기 화면 없이 바로 완성
-  --idle  모양 화면에서 자리를 뜨면 idleSeconds 뒤 시작으로, 이어서 관리자 화면(보정 선택·샘플 보기)
+  --idle  모양 화면에서 자리를 뜨면 idleSeconds 뒤 시작으로, 이어서 관리자 화면(필터 선택·렌즈 위치·샘플 보기)
   --back  카메라가 켜지길 기다리는 사이 '모양 다시' — 모양 화면에 남고 늦게 온 스트림은 꺼져야 함
 실패하면 어느 검사가 깨졌는지 출력하고 종료 코드 1.
 """
@@ -61,11 +61,30 @@ async def snapshot(page, out, checks, name, one_screen=True):
         )
 
 
+RECORD_STREAMS = """
+(() => {
+  const devices = navigator.mediaDevices;
+  if (!devices || window.__streams) return;
+  const original = devices.getUserMedia.bind(devices);
+  window.__streams = [];
+  devices.getUserMedia = async (constraints) => {
+    const stream = await original(constraints);
+    window.__streams.push(stream);
+    return stream;
+  };
+})();
+"""
+
+# 기본 필터 일곱 — 약한 것(맑게)은 빼고 진한 것(팝·노을·블루 아워·빈티지)을 넣은 순서.
+DEFAULT_FILTER_NAMES = ["원본", "따뜻한 날", "팝", "노을", "블루 아워", "빈티지", "흑백"]
+
+
 async def open_app(context, url, settings):
     merged = {**BASE_SETTINGS, **settings}
     await context.add_init_script(
         f"localStorage.setItem({json.dumps(SETTINGS_KEY)}, {json.dumps(json.dumps(merged))})"
     )
+    await context.add_init_script(RECORD_STREAMS)
     page = await context.new_page()
     errors = []
     page.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
@@ -109,6 +128,76 @@ async def choose_to_camera(page, out, checks, shape="세로 4컷"):
     )
     status = (await page.locator(".capture .status").inner_text()).strip()
     checks.expect(status == "주황 칸에 얼굴을 맞춰요", f"준비 설명이 한 줄이 아님: {status!r}")
+    chips = [t.strip() for t in await page.locator(".capture .filter-chip").all_inner_texts()]
+    checks.expect(chips == DEFAULT_FILTER_NAMES, f"기본 필터 칩이 다름: {chips}")
+
+
+async def rotate_check(page, checks):
+    """회전 흉내 — 스트림을 1080×1920(세로 iPad 가 주는 크기)로 바꾸면 세로 4컷 칸(인화 폭 1040px)에
+    줌 여유가 없어 핀치가 막혀야 하고(touch-action 해제), 다시 3840×2160 으로 돌리면 열려야 합니다.
+    상한을 카메라를 켤 때 한 번만 계산하면 돌린 뒤에도 옛 값이 남아 화면과 인화가 어긋납니다."""
+
+    async def resize(width, height):
+        return await page.evaluate(
+            """async ([w, h]) => {
+              const track = (window.__streams || [])[0]?.getVideoTracks()[0];
+              if (!track) return null;
+              await track.applyConstraints({ width: { exact: w }, height: { exact: h } });
+              await new Promise((resolve) => setTimeout(resolve, 900));
+              const video = document.querySelector('video.cam');
+              return { size: `${video.videoWidth}x${video.videoHeight}`,
+                       touch: document.querySelector('.cell-touch')?.style.touchAction ?? null };
+            }""",
+            [width, height],
+        )
+
+    portrait = await resize(1080, 1920)
+    checks.expect(
+        portrait is not None and portrait["size"] == "1080x1920" and portrait["touch"] == "",
+        f"세로 크기(1080×1920)로 바뀐 뒤에도 핀치가 열려 있음: {portrait}",
+    )
+    landscape = await resize(3840, 2160)
+    checks.expect(
+        landscape is not None and landscape["size"] == "3840x2160" and landscape["touch"] == "none",
+        f"가로 크기(3840×2160)로 돌아온 뒤 핀치가 다시 열리지 않음: {landscape}",
+    )
+
+
+# 완성 화면에 들어온 직후 '다시 꾸미는 중'(.composite.busy)이 한 번이라도 켜졌는지. 켜지면 같은 사진을
+# 쓸데없이 다시 합성한 것입니다(합성 서명이 옛 렌더 값으로 기록되는 버그) — 화면이 잠깐 흐려졌다 돌아옵니다.
+# 60ms 안팎이라 폴링으로는 놓치므로 MutationObserver 로 class 변화를 그 자리에서 기록합니다.
+ARM_RECOMPOSE_WATCH = """() => {
+  window.__busySeen = false;
+  const observer = new MutationObserver(() => {
+    if (document.querySelector('.composite.busy')) window.__busySeen = true;
+  });
+  observer.observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class'], childList: true });
+}"""
+
+
+async def arm_recompose_watch(page):
+    """완성 화면으로 넘어가기 **전에** 붙여야 합니다."""
+    await page.evaluate(ARM_RECOMPOSE_WATCH)
+
+
+async def expect_no_entry_recompose(page, checks, where):
+    await page.wait_for_timeout(1500)
+    checks.expect(
+        not await page.evaluate("() => window.__busySeen"),
+        f"{where}: 완성 화면에 들어오자마자 같은 사진을 다시 합성함",
+    )
+
+
+def badge_matches_lens(badge, viewport, edge):
+    """배지 가운데가 뷰포트의 그 변 한가운데(±6px)에, 변에서 48px 안에 있어야 합니다."""
+    width, height = viewport
+    cx = badge["x"] + badge["width"] / 2
+    cy = badge["y"] + badge["height"] / 2
+    if edge == "top":
+        return abs(cx - width / 2) < 6 and badge["y"] < 48
+    if edge == "right":
+        return abs(cy - height / 2) < 6 and badge["x"] + badge["width"] > width - 48
+    return abs(cy - height / 2) < 6 and badge["x"] < 48
 
 
 async def shoot(page, out, checks, name="countdown"):
@@ -132,6 +221,16 @@ async def shoot(page, out, checks, name="countdown"):
     )
     checks.expect(
         "찍는 중이에요" in (await page.locator(".capture .shoot").inner_text()), "촬영 버튼이 '찍는 중이에요' 가 아님"
+    )
+    badge = await page.locator(".look-here").bounding_box()
+    viewport = (page.viewport_size["width"], page.viewport_size["height"])
+    edge = "top" if checks.tag.startswith("land") else "right"
+    checks.expect(
+        badge is not None and badge_matches_lens(badge, viewport, edge),
+        f"'여기를 봐요!' 가 렌즈 쪽 화면 가장자리({edge})에 없음: {badge} / 뷰포트 {viewport}",
+    )
+    checks.expect(
+        not await page.locator(".topbar .step-dots").is_visible(), "촬영 중 배지 뒤에 진행 점이 남아 있음"
     )
     await page.wait_for_selector(AFTER_SHOOT, timeout=60000)
 
@@ -177,9 +276,10 @@ async def swap_and_finish(page, out, checks):
     after = await first_extra.get_attribute("src")
     checks.expect(before != after, "1번째 칸과 여분 1 이 바뀌지 않음")
     await snapshot(page, out, checks, "swap-after")
+    await arm_recompose_watch(page)
     await page.click("button:has-text('이걸로 할래요')")
     await page.wait_for_selector(".result", timeout=15000)
-    await page.wait_for_timeout(400)
+    await expect_no_entry_recompose(page, checks, "바꾸기 뒤")
     await snapshot(page, out, checks, "result")
     hero = page.locator(".result .hero-action")
     save = page.locator(".result .action-button:has-text('내 폰에 저장')")
@@ -190,6 +290,7 @@ async def swap_and_finish(page, out, checks):
         checks.expect(h > s_ > m, f"버튼 위계가 크기로 안 드러남: 인쇄 {h:.0f} / 저장 {s_:.0f} / 보조 {m:.0f}")
     else:
         checks.expect(False, "완성 화면에 hero-action / 저장 / result-minor 알약이 갖춰지지 않음")
+    await filter_on_result(page, out, checks)
     await page.click("button:has-text('인쇄하기')")
     await page.wait_for_selector(".done-toast", timeout=5000)
     if await page.locator(".result .hero-action").count() == 1:
@@ -203,6 +304,50 @@ async def swap_and_finish(page, out, checks):
     await snapshot(page, out, checks, "result-idle")
 
 
+FIRST_CELL_CHANNEL_DIFF = """async () => {
+  const shown = document.querySelector('.composite');
+  const image = new Image();
+  image.src = shown.src;
+  await image.decode();
+  const canvas = document.createElement('canvas');
+  canvas.width = image.naturalWidth;
+  canvas.height = image.naturalHeight;
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  context.drawImage(image, 0, 0);
+  // 세로 4컷 첫 조각의 첫 칸(조각 좌표 40,166 / 520×316) 안쪽 — 인화지 폭 1200 기준 배율
+  const s = image.naturalWidth / 1200;
+  const d = context.getImageData(Math.round(60 * s), Math.round(186 * s), Math.round(480 * s), Math.round(276 * s)).data;
+  let diff = 0, n = 0;
+  for (let i = 0; i < d.length; i += 4 * 53) { diff += Math.abs(d[i] - d[i + 1]) + Math.abs(d[i + 1] - d[i + 2]); n += 1; }
+  return diff / n;
+}"""
+
+
+async def filter_on_result(page, out, checks):
+    """완성 화면의 꾸미기 시트에서 필터를 흑백으로 — 다시 찍지 않고 사진이 다시 구워져야 합니다."""
+    before = await page.evaluate(FIRST_CELL_CHANNEL_DIFF)
+    checks.expect(before > 10, f"원본 상태의 첫 칸이 컬러가 아님(채널차 {before:.1f}) — 검사 전제가 깨짐")
+    await page.click(".result .dress-toggle")
+    await page.wait_for_selector(".dress-sheet", timeout=5000)
+    chips = [t.strip() for t in await page.locator(".dress-sheet .filter-chip").all_inner_texts()]
+    checks.expect(chips == DEFAULT_FILTER_NAMES, f"완성 화면 시트에 필터 칩이 없거나 다름: {chips}")
+    src_before = await page.locator(".composite").get_attribute("src")
+    await page.click(".dress-sheet .filter-chip:has-text('흑백')")
+    await page.wait_for_function(
+        "(src) => { const img = document.querySelector('.composite'); return img && img.src !== src && !img.classList.contains('busy'); }",
+        arg=src_before,
+        timeout=20000,
+    )
+    await page.wait_for_timeout(300)
+    await snapshot(page, out, checks, "result-filter", one_screen=False)
+    after = await page.evaluate(FIRST_CELL_CHANNEL_DIFF)
+    checks.expect(after < 4, f"흑백으로 바꿨는데 첫 칸이 아직 컬러(채널차 {after:.1f})")
+    selected = await page.locator(".dress-sheet .filter-chip.selected").all_inner_texts()
+    checks.expect([t.strip() for t in selected] == ["흑백"], f"고른 필터 표시가 다름: {selected}")
+    await page.click(".dress-sheet button:has-text('닫기')")
+    await page.wait_for_selector(".dress-sheet", state="detached", timeout=5000)
+
+
 async def run_default(browser, url, out, tag, width, height):
     checks = Checks(tag)
     context = await browser.new_context(viewport={"width": width, "height": height})
@@ -210,6 +355,7 @@ async def run_default(browser, url, out, tag, width, height):
     try:
         page, errors = await open_app(context, url, {})
         await choose_to_camera(page, out, checks)
+        await rotate_check(page, checks)
         await shoot(page, out, checks)
         await swap_and_finish(page, out, checks)
     except Exception as caught:  # noqa: BLE001 — 어느 단계에서 멈췄는지 보고합니다
@@ -301,8 +447,10 @@ async def run_exact(browser, url, out, tag, width, height):
     try:
         page, errors = await open_app(context, url, {"shootCount": 4})
         await choose_to_camera(page, out, checks)
+        await arm_recompose_watch(page)
         await page.click("button:has-text('장 찍기')")
         await page.wait_for_selector(".result", timeout=60000)
+        await expect_no_entry_recompose(page, checks, "촬영 직후")
         checks.expect(await page.locator(".swap").count() == 0, "바꾸기 화면이 떴음")
         await snapshot(page, out, checks, "exact-result")
     except Exception as caught:  # noqa: BLE001
@@ -333,8 +481,12 @@ async def run_idle_admin(browser, url, out, tag, width, height):
         await page.keyboard.type("0000")
         await page.wait_for_selector(".admin", timeout=5000)
         checks.expect(
-            await page.locator(".admin:has-text('손님에게 보여줄 보정')").count() == 1, "관리자에 보정 선택이 없음"
+            await page.locator(".admin:has-text('손님에게 보여줄 필터')").count() == 1, "관리자에 필터 선택이 없음"
         )
+        for label in ("가로로 세웠을 때", "세로로 세웠을 때"):
+            checks.expect(
+                await page.locator(f".admin:has-text('{label}')").count() == 1, f"관리자에 렌즈 위치 '{label}' 줄이 없음"
+            )
         await snapshot(page, out, checks, "admin", one_screen=False)
         await page.click("button:has-text('샘플 인화물 보기')")
         await page.wait_for_selector(".result .sample-badge", timeout=15000)

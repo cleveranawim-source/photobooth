@@ -226,6 +226,11 @@ button:focus-visible {
   justify-self: center;
 }
 
+/* 촬영 중엔 진행 점을 숨깁니다 — 렌즈가 위면 '여기를 봐요!' 가 바로 그 자리(화면 위 가운데)에 옵니다. */
+.topbar.shooting .step-dots {
+  visibility: hidden;
+}
+
 .logo {
   font-size: 17px;
   font-weight: 800;
@@ -807,10 +812,11 @@ button:focus-visible {
   }
 }
 
-/* "여기를 봐요!" — 무대의 렌즈 쪽 가장자리. 칸 안이 아니라 화면 가장자리라야 시선이 렌즈로 갑니다. */
+/* "여기를 봐요!" — 렌즈 쪽 **화면** 가장자리(뷰포트 기준 fixed). 무대 열 안에 두면 가로에서는 무대
+   가운데(렌즈보다 170px 왼쪽)에 뜹니다. 어느 변인지는 방향별 설정(camEdges)이 정합니다. */
 .look-here {
-  position: absolute;
-  z-index: 2;
+  position: fixed;
+  z-index: 30;
   display: flex;
   align-items: center;
   gap: 7px;
@@ -840,19 +846,19 @@ button:focus-visible {
 }
 
 .edge-top .look-here {
-  top: 10px;
+  top: calc(env(safe-area-inset-top, 0px) + 10px);
   left: 50%;
   transform: translateX(-50%);
 }
 
 .edge-left .look-here {
-  left: 10px;
+  left: calc(env(safe-area-inset-left, 0px) + 10px);
   top: 50%;
   transform: translateY(-50%);
 }
 
 .edge-right .look-here {
-  right: 10px;
+  right: calc(env(safe-area-inset-right, 0px) + 10px);
   top: 50%;
   transform: translateY(-50%);
 }
@@ -889,27 +895,18 @@ button:focus-visible {
   cursor: pointer;
 }
 
-/* 보정 고르기 — 한 줄로 넘깁니다. 칩마다 실제 엔진으로 입힌 얼굴 썸네일이 있어
-   이름을 몰라도 고를 수 있습니다. */
+/* 필터 고르기 — 줄을 바꿔 전부 보입니다(넘겨야 보이는 칩은 키오스크에서 없는 것과 같습니다).
+   칩마다 실제 엔진으로 입힌 얼굴 썸네일이 있어 이름을 몰라도 고를 수 있습니다. 촬영·완성 화면 공용. */
 .filter-bar {
   display: flex;
   gap: 8px;
-  flex-wrap: nowrap;
-  overflow-x: auto;
+  flex-wrap: wrap;
   max-width: 100%;
   padding: 4px 4px;
-  scroll-snap-type: x proximity;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-}
-
-.filter-bar::-webkit-scrollbar {
-  display: none;
 }
 
 .filter-chip {
   flex: 0 0 auto;
-  scroll-snap-align: start;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1493,6 +1490,23 @@ button:focus-visible {
   font-size: 13px;
   font-weight: 700;
   color: var(--accent);
+}
+
+/* 방향별 렌즈 위치 — 지금 iPad 가 서 있는 방향의 줄에 표식 */
+.edge-pick {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.edge-pick strong {
+  font-size: 14px;
+  color: var(--sub);
+}
+
+.edge-pick.current strong::after {
+  content: " · 지금 이 방향";
+  color: var(--accent-ink);
 }
 
 /* ── 세로 모드 ─────────────────────────────────────────────── */

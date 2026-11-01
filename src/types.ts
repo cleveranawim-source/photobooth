@@ -4,8 +4,17 @@
 /** 손님이 지나는 화면. start→shape→frame→camera→(swap)→result 순서이고, admin 은 운영자용. */
 export type Phase = "start" | "shape" | "frame" | "camera" | "swap" | "result" | "admin";
 
-/** 전면 카메라(렌즈)가 있는 화면 가장자리 — 카운트다운을 그쪽에 붙여 시선을 렌즈로 모읍니다. */
+/** 전면 카메라(렌즈)가 있는 화면 가장자리 — "여기를 봐요!" 를 그쪽 화면 끝에 붙여 시선을 렌즈로 모읍니다. */
 export type CamEdge = "top" | "left" | "right";
+
+/** iPad 를 세운 방향. CSS 의 (orientation: portrait) 와 같은 기준입니다. */
+export type Orientation = "landscape" | "portrait";
+
+/**
+ * 방향마다 다른 렌즈 위치. iPad 를 돌리면 같은 렌즈가 다른 변으로 가므로(가로 위 ↔ 세로 옆)
+ * 값 하나로는 두 방향이 동시에 맞을 수 없습니다. 웹에서는 렌즈 위치를 알 수 없어 관리자가 방향마다 고릅니다.
+ */
+export type CamEdges = Record<Orientation, CamEdge>;
 
 /** 인화물 장식 스타일. lib/decor.ts 가 이 값에 따라 바탕과 사진칸을 다르게 꾸밉니다. */
 export type Decor =
@@ -131,7 +140,8 @@ export type Settings = {
   copies: number;
   /** 촬영 컷 수. 레이아웃이 필요한 수보다 많으면 고르는 화면이 뜹니다. */
   shootCount: number;
-  camEdge: CamEdge;
+  /** 방향마다의 렌즈 위치 — 촬영 중 "여기를 봐요!" 가 붙는 화면 가장자리 */
+  camEdges: CamEdges;
   /** 촬영 카운트다운 초 */
   countdown: number;
   /** 완성·선택·촬영 대기 화면 방치 시 자동 초기화까지 걸리는 초 (촬영 시퀀스 중엔 제외) */
@@ -139,7 +149,7 @@ export type Settings = {
   /** 손님에게 보여줄 프레임 목록(비우면 전부) */
   enabledFrames: string[];
   enabledLayouts: string[];
-  /** 촬영 화면에 보여줄 보정 목록(비우면 기본 넷 — 원본·맑게·따뜻한 날·흑백) */
+  /** 손님에게 보여줄 필터 목록(비우면 기본 일곱 — 원본·따뜻한 날·팝·노을·블루 아워·빈티지·흑백) */
   enabledFilters: string[];
   defaultFrame: string;
   defaultLayout: string;

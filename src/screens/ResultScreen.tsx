@@ -1,6 +1,7 @@
 import { useState } from "react";
-import type { Frame, Layout } from "../types";
+import type { FilterDef, Frame, Layout } from "../types";
 import { Icon } from "../components/Icon";
+import { FilterChips } from "../components/FilterChips";
 import { FrameSwatch } from "../components/Previews";
 import type { Clip } from "../lib/timelapse";
 
@@ -10,6 +11,9 @@ type Props = {
   layouts: Layout[];
   frames: Frame[];
   frameKey: string;
+  /** 완성 화면에서 바꿀 수 있는 필터. 비어 있으면(샘플) 필터 줄을 숨깁니다. */
+  filters: FilterDef[];
+  filterKey: string;
   caption: string;
   copies: number;
   clip: Clip | null;
@@ -25,6 +29,7 @@ type Props = {
   secondsLeft: number | null;
   onFrame: (key: string) => void;
   onLayout: (key: string) => void;
+  onFilter: (key: string) => void;
   onCaption: (value: string) => void;
   onPrint: () => void;
   onShare: () => void;
@@ -38,6 +43,8 @@ export function ResultScreen({
   layouts,
   frames,
   frameKey,
+  filters,
+  filterKey,
   caption,
   copies,
   clip,
@@ -48,6 +55,7 @@ export function ResultScreen({
   secondsLeft,
   onFrame,
   onLayout,
+  onFilter,
   onCaption,
   onPrint,
   onShare,
@@ -140,7 +148,7 @@ export function ResultScreen({
             aria-expanded={dressing}
             onClick={() => setDressing((previous) => !previous)}
           >
-            <Icon name="sparkle" /> 문구·프레임 바꾸기
+            <Icon name="sparkle" /> 필터·문구·프레임 바꾸기
           </button>
           <button className="pill-button restart" onClick={onRestart}>
             <Icon name="redo" /> 처음부터 다시
@@ -163,11 +171,18 @@ export function ResultScreen({
       {dressing && (
         <div className="dress-sheet" role="dialog" aria-label="다르게 꾸며보기">
           <div className="sheet-head">
-            <p className="option-note">사진은 그대로예요. 겉모습만 바꿔서 다시 만들어 드려요.</p>
+            <p className="option-note">다시 찍지 않아도 돼요. 필터와 겉모습만 바꿔서 다시 만들어 드려요.</p>
             <button className="ghost-button" onClick={() => setDressing(false)}>
               닫기
             </button>
           </div>
+
+          {filters.length > 0 && (
+            <>
+              <h3>필터</h3>
+              <FilterChips filters={filters} value={filterKey} onChange={onFilter} />
+            </>
+          )}
 
           <h3>프레임</h3>
           <div className="chip-row">

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { CamEdge, Settings } from "../types";
+import type { CamEdge, Orientation, Settings } from "../types";
 import { FRAMES } from "../config/frames";
 import { FILTERS } from "../config/filters";
 import { LAYOUTS, findLayout, shotsNeeded } from "../config/layouts";
@@ -7,6 +7,7 @@ import { DEFAULT_SETTINGS } from "../lib/settings";
 import { Icon } from "../components/Icon";
 import { FrameSwatch } from "../components/Previews";
 import { useIdleReset } from "../hooks/useKiosk";
+import { useOrientation } from "../hooks/useOrientation";
 
 type Props = {
   settings: Settings;
@@ -17,9 +18,14 @@ type Props = {
 };
 
 const CAM_EDGES: { key: CamEdge; label: string }[] = [
-  { key: "top", label: "위 (13인치·가로 거치)" },
+  { key: "top", label: "위" },
   { key: "left", label: "왼쪽" },
   { key: "right", label: "오른쪽" },
+];
+
+const ORIENTATIONS: { key: Orientation; label: string }[] = [
+  { key: "landscape", label: "가로로 세웠을 때" },
+  { key: "portrait", label: "세로로 세웠을 때" },
 ];
 
 export function AdminScreen({ settings, onSave, onClose, onSample }: Props) {
@@ -28,6 +34,7 @@ export function AdminScreen({ settings, onSave, onClose, onSample }: Props) {
   const [pinError, setPinError] = useState(false);
   const [draft, setDraft] = useState<Settings>(settings);
   const [saved, setSaved] = useState(false);
+  const orientation = useOrientation();
   // "기본값으로 되돌리기"는 저장 버튼 바로 옆이라 한 번 더 묻습니다.
   const [confirmReset, setConfirmReset] = useState(false);
 
@@ -213,22 +220,33 @@ export function AdminScreen({ settings, onSave, onClose, onSample }: Props) {
       </section>
 
       <section className="admin-group">
-        <h3>카메라 위치</h3>
+        <h3>카메라 렌즈 위치</h3>
         <p className="admin-note">
-          웹에서는 렌즈 위치를 알 수 없어 한 번만 지정해 둡니다. 카운트다운이 그쪽에 붙어
-          아이들 시선이 렌즈로 향해요.
+          웹에서는 렌즈 위치를 알 수 없어 여기서 지정해 둡니다. 촬영 중 &lsquo;여기를 봐요!&rsquo;가 그쪽
+          화면 끝에 붙어 아이들 시선이 렌즈로 향해요. iPad 를 돌리면 같은 렌즈가 다른 변으로 가므로
+          방향마다 따로 고릅니다 — 2022년 이후 iPad(10세대·Air M2/M3·Pro M4)는 가로일 때 위, 세로일 때
+          오른쪽이에요. 지금 이 iPad 는 {orientation === "portrait" ? "세로" : "가로"}로 서 있어요.
         </p>
-        <div className="chip-list tight">
-          {CAM_EDGES.map((edge) => (
-            <button
-              key={edge.key}
-              className={`pill${draft.camEdge === edge.key ? " selected" : ""}`}
-              onClick={() => patch({ camEdge: edge.key })}
-            >
-              {edge.label}
-            </button>
-          ))}
-        </div>
+        {ORIENTATIONS.map((item) => (
+          <div key={item.key} className={`edge-pick${orientation === item.key ? " current" : ""}`}>
+            <strong>{item.label}</strong>
+            <div className="chip-list tight">
+              {CAM_EDGES.map((edge) => (
+                <button
+                  key={edge.key}
+                  className={`pill${draft.camEdges[item.key] === edge.key ? " selected" : ""}`}
+                  onClick={() => patch({ camEdges: { ...draft.camEdges, [item.key]: edge.key } })}
+                >
+                  {edge.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+        <p className="admin-note">
+          가로로 세우면 더 넓게 찍혀 단체 촬영에 좋고, 세로는 폭이 좁아 한두 명에 맞아요(카메라 프레임이
+          방향을 따라 돌기 때문). 2×2 격자·가로 띠처럼 세로로 긴 칸은 세로로 세웠을 때 화질이 더 좋습니다.
+        </p>
       </section>
 
       <section className="admin-group">
@@ -295,10 +313,10 @@ export function AdminScreen({ settings, onSave, onClose, onSample }: Props) {
       </section>
 
       <section className="admin-group">
-        <h3>손님에게 보여줄 보정</h3>
+        <h3>손님에게 보여줄 필터</h3>
         <p className="admin-note">
-          아무것도 고르지 않으면 원본·맑게·따뜻한 날·흑백 넷을 보여줍니다. 많이 켤수록 촬영 화면이
-          복잡해져요.
+          아무것도 고르지 않으면 원본·따뜻한 날·팝·노을·블루 아워·빈티지·흑백 일곱을 보여줍니다. 촬영 전에
+          고르고, 완성 화면에서도 바꿀 수 있어요. 많이 켤수록 촬영 화면이 복잡해져요.
         </p>
         <div className="chip-list tight">
           {FILTERS.map((item) => (

@@ -2,8 +2,8 @@ import { useRef, type RefObject } from "react";
 import type { CamEdge, FilmGrade, FilterDef, Frame, Layout, LayoutCell } from "../types";
 import { Icon } from "../components/Icon";
 import { PrintStage } from "../components/PrintStage";
+import { FilterChips } from "../components/FilterChips";
 import { useFilmPreview } from "../hooks/useFilmPreview";
-import { useFilterSwatches } from "../hooks/useFilterSwatches";
 import { MAX_ZOOM } from "../lib/canvas";
 
 type Props = {
@@ -83,7 +83,6 @@ export function CaptureScreen({
   // 모든 칸은 같은 크기라 비율도 하나입니다 — 촬영 크롭(centerCrop)과 같은 값.
   const ratio = active.w / active.h;
   useFilmPreview(videoRef, filmCanvasRef, film, ratio, zoom);
-  const swatches = useFilterSwatches(filters);
 
   // ── 핀치 줌 ────────────────────────────────────────────────────────
   // 포인터 이벤트로 직접 셉니다. Safari 의 gesturechange 는 iOS 전용이라 아이패드에서만 돌고,
@@ -197,7 +196,8 @@ export function CaptureScreen({
           </div>
         </PrintStage>
 
-        {/* 렌즈 쪽 가장자리에 붙여 시선을 렌즈로 보냅니다 — 칸 안이 아니라 화면 가장자리. */}
+        {/* 렌즈 쪽 **화면** 가장자리(position: fixed)에 붙여 시선을 렌즈로 보냅니다. 무대 열 안에 두면
+            가로에서는 무대 가운데(렌즈보다 170px 왼쪽)에 뜹니다. 어느 변인지는 방향별 설정(camEdges). */}
         {shooting && (
           <div className="look-here">
             <Icon name="camera" /> 여기를 봐요!
@@ -246,25 +246,8 @@ export function CaptureScreen({
           )}
         </div>
 
-        {/* 보정은 이름만 봐선 알 수 없어, 실제 엔진으로 입힌 얼굴 썸네일을 함께 보여줍니다. */}
-        <div className="filter-bar" role="group" aria-label="사진 보정">
-          {filters.map((item) => (
-            <button
-              key={item.key}
-              className={`filter-chip${item.key === filterKey ? " selected" : ""}`}
-              aria-pressed={item.key === filterKey}
-              disabled={shooting}
-              onClick={() => onFilter(item.key)}
-            >
-              {swatches[item.key] ? (
-                <img src={swatches[item.key]} alt="" />
-              ) : (
-                <span className="filter-dot" aria-hidden="true" />
-              )}
-              {item.name}
-            </button>
-          ))}
-        </div>
+        {/* 필터는 찍기 전에 고르고(미리보기에 바로 보임), 완성 화면에서 다시 바꿀 수도 있습니다. */}
+        <FilterChips filters={filters} value={filterKey} disabled={shooting} onChange={onFilter} />
 
         <button className="primary-button shoot" onClick={onShoot} disabled={!ready || shooting}>
           <Icon name="camera" />

@@ -5,7 +5,7 @@ import { findFrame } from "./config/frames";
 import { cellRatio, findLayout, shotsNeeded } from "./config/layouts";
 import { ensureAudio, playBeep, playFanfare, playShutter } from "./lib/audio";
 import { maxLosslessZoom, sleep } from "./lib/canvas";
-import { captureVideoFrame } from "./lib/capture";
+import { bakeShot, captureVideoFrame } from "./lib/capture";
 import { composePrint, makeSampleShots } from "./lib/compose";
 import { glowFilterCss, previewFilterCss } from "./lib/filterEngine";
 import { printImage, shareClip, shareImage } from "./lib/share";
@@ -19,6 +19,7 @@ import {
 import { buildTimelapse, startTimelapseCapture, type Clip } from "./lib/timelapse";
 import { useCamera } from "./hooks/useCamera";
 import { useIdleReset, useWakeLock } from "./hooks/useKiosk";
+import { useOrientation } from "./hooks/useOrientation";
 import { useTileImage } from "./hooks/useTileImage";
 import { captureSlots, reviewSlots, swapSlots } from "./lib/stageGeometry";
 import { framePreviewKey, usePrintPreviews } from "./hooks/usePrintPreviews";
@@ -45,6 +46,10 @@ export default function App() {
   const [caption, setCaption] = useState(settings.caption);
 
   const [shots, setShots] = useState<string[]>([]);
+  /** shots 와 같은 순서의 보정 전 원본 — 완성 화면에서 필터를 바꿀 때 여기서 다시 굽습니다. */
+  const [rawShots, setRawShots] = useState<string[]>([]);
+  /** 지금 shots 에 구워져 있는 필터. filterKey 와 다르면 완성 화면이 다시 굽습니다. */
+  const [bakedFilterKey, setBakedFilterKey] = useState("none");
   /** 찍은 순서를 칸에 놓는 순서로 — shots 인덱스 배열. 앞 needed 개가 조각 칸, 나머지가 여분. */
   const [order, setOrder] = useState<number[]>([]);
   /** 바꾸기 화면에서 고른 칸 */
@@ -83,6 +88,7 @@ export default function App() {
   const composedSigRef = useRef("");
 
   const camera = useCamera();
+  const orientation = useOrientation();
   useWakeLock();
 
   // 카메라 권한 거부·장치 점유 등은 useCamera 가 메시지를 만들지만, 여기서 화면에 띄우지
@@ -231,16 +237,19 @@ export default function App() {
     stopCamera(); // 환영 화면에서는 카메라 표시등이 꺼지도록
     setPhase("start");
     setComposite(null);
+    setComposing(false); // 꾸미는 도중 초기화돼도 다음 손님의 버튼이 잠겨 있지 않게
     setClip(null);
     setClipPending(false);
     setShots([]);
+    setRawShots([]);
     setOrder([]);
     setSelectedSlot(null);
     setShotIndex(0);
     setError(null);
     setPrinted(false);
     setZoom(1); // 다음 손님이 앞사람 확대 상태를 그대로 물려받지 않도록
-  }, [stopCamera]);
+    setFilterKey(filters[0]?.key ?? "none"); // 필터도 — 앞사람이 고른 흑백으로 다음 손님이 시작하지 않게
+  }, [stopCamera, filters]);
 
   // 촬영 대기 화면도 초기화 대상입니다 — 손님이 여기까지 왔다가 그냥 가면 카메라가
   // 켜진 채(표시등 점등) 줌·필터가 다음 손님에게 남습니다. 촬영 시퀀스 중에는 걸지 않습니다.
@@ -268,6 +277,7 @@ export default function App() {
     setComposite(null);
     setPrinted(false);
     setShots([]);
+    setRawShots([]);
     setOrder([]);
     setSelectedSlot(null);
     setShotIndex(0);
@@ -347,17 +357,15 @@ export default function App() {
   })();
 
   // 지금 조합으로 합성한 적이 있는지 판별하는 서명. 결과 화면에서 무엇이든 바뀌면 달라집니다.
-  const composeSignature = [
-    frameKey,
-    layoutKey,
-    caption,
-    settings.title,
-    settings.tagline,
-    sampleMode ? "sample" : sourceShots.length,
-  ].join("|");
+  // 합성을 부르는 쪽이 **자기가 넣는 값**으로 서명을 만들어 넘깁니다. 렌더에서 읽은 서명을 기록하면,
+  // 촬영 직후처럼 타이머 안에서 상태를 바꾸고 바로 합성하는 경우 렌더가 따라오기 전에 합성이 끝나
+  // 옛 서명(사진 0장)이 남고, 완성 화면이 "조건이 다르다"며 같은 사진을 한 번 더 합성해 잠깐 흐려집니다.
+  const signatureOf = (count: number | "sample", baked: string) =>
+    [frameKey, layoutKey, caption, settings.title, settings.tagline, baked, count].join("|");
+  const composeSignature = signatureOf(sampleMode ? "sample" : sourceShots.length, bakedFilterKey);
 
   const compose = useCallback(
-    async (images: string[]) => {
+    async (images: string[], signature: string) => {
       const result = await composePrint({
         images,
         frame,
@@ -366,10 +374,10 @@ export default function App() {
         tagline: settings.tagline,
         caption,
       });
-      composedSigRef.current = composeSignature;
+      composedSigRef.current = signature;
       return result;
     },
-    [frame, layout, settings.title, settings.tagline, caption, composeSignature],
+    [frame, layout, settings.title, settings.tagline, caption],
   );
 
   /** 레이아웃이 요구하는 장수에 맞춰 사진을 고릅니다. 모자라면 앞에서부터 다시 씁니다. */
@@ -394,7 +402,7 @@ export default function App() {
       setComposing(true);
       void (async () => {
         try {
-          const result = await compose(imagesForLayout(needed));
+          const result = await compose(imagesForLayout(needed), composeSignature);
           if (!cancelled && runGenRef.current === gen) setComposite(result);
         } catch {
           if (!cancelled) setError("사진을 다시 꾸미지 못했습니다.");
@@ -409,6 +417,37 @@ export default function App() {
     };
   }, [phase, composeSignature, compose, imagesForLayout, needed]);
 
+  /**
+   * 완성 화면에서 필터를 바꾸면 원본에서 다시 굽습니다 — 다시 찍지 않습니다. 다 구워진 뒤에야
+   * bakedFilterKey 가 바뀌어 합성 서명이 달라지므로, 재합성은 새 사진으로만 일어납니다.
+   */
+  useEffect(() => {
+    if (phase !== "result" || sampleMode || !rawShots.length || bakedFilterKey === filterKey) return;
+    const gen = runGenRef.current;
+    let cancelled = false;
+    setComposing(true);
+    void (async () => {
+      try {
+        const baked = await Promise.all(
+          rawShots.map((raw) => bakeShot(raw, filter, settings.skinSmooth / 100)),
+        );
+        if (cancelled || runGenRef.current !== gen) return;
+        setShots(baked);
+        const placement = order.length ? order : baked.map((_, index) => index);
+        setSourceShots(placement.map((index) => baked[index]));
+        setBakedFilterKey(filter.key);
+      } catch {
+        if (!cancelled) {
+          setError("필터를 바꾸지 못했습니다.");
+          setComposing(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [phase, sampleMode, rawShots, bakedFilterKey, filterKey, filter, order, settings.skinSmooth]);
+
   const runSequence = async () => {
     if (!videoRef.current || !camera.ready || shooting) return;
     // 이 시퀀스의 세대를 기억해 두고, 도중에 초기화되거나 촬영 화면이 사라지면 조용히 중단합니다.
@@ -417,6 +456,7 @@ export default function App() {
     setShooting(true);
     setError(null);
     setShots([]);
+    setRawShots([]);
     setShotIndex(0);
     setOrder([]);
     setSelectedSlot(null);
@@ -449,8 +489,9 @@ export default function App() {
           settings.skinSmooth / 100,
           zoom,
         );
-        frames.push(shot);
-        setShots((previous) => [...previous, shot]);
+        frames.push(shot.baked);
+        setShots((previous) => [...previous, shot.baked]);
+        setRawShots((previous) => [...previous, shot.raw]);
         setShotIndex(index + 1);
         await sleep(180);
         setFlash(false);
@@ -458,6 +499,7 @@ export default function App() {
       }
       const snapshots = timelapse?.stop() ?? [];
       if (aborted()) return;
+      setBakedFilterKey(filter.key); // 촬영 중엔 칩이 잠겨 있어 시퀀스 내내 같은 필터입니다
       playFanfare();
       // 타임랩스는 백그라운드에서 — 완성 화면 진입을 막지 않고, 끝나면 저장 버튼이 나타납니다.
       if (snapshots.length) {
@@ -482,7 +524,7 @@ export default function App() {
       setStatus("사진을 꾸미고 있어요");
       setSampleMode(false);
       setSourceShots(frames);
-      const result = await compose(frames);
+      const result = await compose(frames, signatureOf(frames.length, filter.key));
       if (aborted()) return;
       setComposite(result);
       setPhase("result");
@@ -521,7 +563,7 @@ export default function App() {
       // 여분으로 채울 수 있게 전부 넘깁니다.
       setSampleMode(false);
       setSourceShots(orderedShots);
-      const result = await compose(orderedShots.slice(0, needed));
+      const result = await compose(orderedShots.slice(0, needed), signatureOf(orderedShots.length, bakedFilterKey));
       if (runGenRef.current !== gen) return;
       setComposite(result);
       setSelectedSlot(null);
@@ -540,7 +582,7 @@ export default function App() {
     setSampleMode(true);
     setSourceShots([]);
     try {
-      const result = await compose(makeSampleShots(needed, ratio));
+      const result = await compose(makeSampleShots(needed, ratio), signatureOf("sample", bakedFilterKey));
       setComposite(result);
       setPhase("result");
     } catch {
@@ -572,7 +614,8 @@ export default function App() {
     <div className={`app${phase === "camera" || phase === "swap" ? " app--fit" : ""}`}>
       {/* 상단 바: 시작·관리자에는 없고, 고르는 화면에는 되돌아가기 + 점 셋, 그 뒤로는 이름만. */}
       {back && (
-        <header className="topbar no-print">
+        // 촬영 중엔 진행 점을 숨깁니다 — 렌즈가 위에 있으면 '여기를 봐요!' 가 그 자리에 옵니다.
+        <header className={`topbar no-print${shooting ? " shooting" : ""}`}>
           <button className="ghost-button" onClick={back.go} disabled={shooting}>
             <Icon name="back" /> {back.label}
           </button>
@@ -630,7 +673,7 @@ export default function App() {
           tileSrc={tileSrc}
           slots={slots}
           activeIndex={activeIndex}
-          camEdge={settings.camEdge}
+          camEdge={settings.camEdges[orientation]}
           countdown={countdown}
           shotIndex={shotIndex}
           total={totalShots}
@@ -671,6 +714,8 @@ export default function App() {
           layouts={layouts}
           frames={frames}
           frameKey={frameKey}
+          filters={sampleMode ? [] : filters}
+          filterKey={filterKey}
           caption={caption}
           copies={settings.copies}
           clip={clip}
@@ -681,6 +726,7 @@ export default function App() {
           secondsLeft={idleSecondsLeft}
           onFrame={setFrameKey}
           onLayout={setLayoutKey}
+          onFilter={setFilterKey}
           onCaption={setCaption}
           onPrint={() => void print()}
           onShare={() => void shareImage(composite)}

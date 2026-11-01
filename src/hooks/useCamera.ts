@@ -103,15 +103,29 @@ export function useCamera() {
     }
     const primary = videos[0];
     if (!primary) return undefined;
+    // 해상도(→ 줌 상한)는 **지금 화면에 들어오는 프레임 크기**로 셉니다. 트랙 설정값은 켤 때 한 번
+    // 읽은 것이라, iPad 를 돌려 프레임이 1920×1080 ↔ 1080×1920 으로 바뀌어도 그대로 남습니다 —
+    // 그러면 세로에서 가로 기준 상한으로 당겨져 화면과 인화가 어긋납니다. <video> 의 resize 가 알려 줍니다.
+    const syncSize = () => {
+      if (primary.videoWidth && primary.videoHeight) {
+        setResolution(`${primary.videoWidth}×${primary.videoHeight}`);
+      }
+    };
+    primary.addEventListener("resize", syncSize);
+    syncSize();
     // 재사용한 스트림은 canplay 가 다시 안 뜰 수 있어, 이미 준비된 경우를 먼저 봅니다.
     if (primary.readyState >= 2) {
       setReady(true);
-      return undefined;
+      return () => primary.removeEventListener("resize", syncSize);
     }
-    const markReady = () => setReady(true);
+    const markReady = () => {
+      syncSize();
+      setReady(true);
+    };
     primary.addEventListener("loadedmetadata", markReady);
     primary.addEventListener("canplay", markReady);
     return () => {
+      primary.removeEventListener("resize", syncSize);
       primary.removeEventListener("loadedmetadata", markReady);
       primary.removeEventListener("canplay", markReady);
     };
