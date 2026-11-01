@@ -4,3 +4,6 @@ dist
 tools/.venv
 .DS_Store
 .claude/settings.local.json
+
+# Impeccable 디자인 점검 기록 — 로컬 작업 메모라 공유하지 않습니다
+.impeccable/
